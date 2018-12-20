@@ -1,0 +1,8 @@
+build/
+cmake-build*
+README.md
+images/
+python/
+.idea/
+LICENCE
+
