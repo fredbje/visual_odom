@@ -1,8 +1,6 @@
-
 #include "bucket.h"
 
-
-Bucket::Bucket(int size)
+Bucket::Bucket(unsigned int size)
 {
     max_size = size;
 }
@@ -12,27 +10,25 @@ unsigned long Bucket::size()
     return features.points.size();
 }
 
-
 void Bucket::add_feature(cv::Point2f point, int age)
 {
     // won't add feature with age > 10;
     int age_threshold = 10;
-    if (age < age_threshold)
+    if( age < age_threshold )
     {
         // insert any feature before bucket is full
-        if (size()<max_size)
+        if( size() < max_size )
         {
             features.points.push_back(point);
             features.ages.push_back(age);
-
         }
         else
         // insert feature with old age and remove youngest one
         {
             int age_min = features.ages[0];
-            int age_min_idx = 0;
+            unsigned int age_min_idx = 0;
 
-            for (int i = 0; i < size(); i++)
+            for( unsigned int i = 0; i < size(); i++ )
             {
                 if (age < age_min)
                 {

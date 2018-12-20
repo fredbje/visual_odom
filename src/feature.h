@@ -1,6 +1,7 @@
 #ifndef FEATURE_H
 #define FEATURE_H
 
+/*
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -16,12 +17,15 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+*/
+#include <vector>
+#include <opencv2/core/types.hpp>
 
 
 struct FeatureSet {
-    std::vector<cv::Point2f>  points;
-    std::vector<int>  ages;
-    int size(){
+    std::vector<cv::Point2f> points;
+    std::vector<int> ages;
+    unsigned long size(){
         return points.size();
     }
     void clear(){

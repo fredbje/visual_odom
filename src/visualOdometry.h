@@ -1,6 +1,7 @@
 #ifndef VISUAL_ODOM_H
 #define VISUAL_ODOM_H
 
+/*
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -15,15 +16,19 @@
 #include <ctime>
 #include <sstream>
 #include <fstream>
-#include <string>
+
 #include <Eigen/Dense>
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <unsupported/Eigen/NumericalDiff>
 #include <opencv2/core/eigen.hpp>
 
-#include "feature.h"
+
 #include "bucket.h"
 #include "utils.h"
+*/
+
+#include <string>
+#include "feature.h"
 
 void visualOdometry(int current_frame_id, std::string filepath,
                     cv::Mat& projMatrl, cv::Mat& projMatrr,

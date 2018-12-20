@@ -1,4 +1,4 @@
-
+/*
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -23,48 +23,19 @@
 #include "utils.h"
 #include "evaluate_odometry.h"
 #include "visualOdometry.h"
+
+#include "matrixutils.h"
+ */
+
+#include "evaluate/evaluate_odometry.h"
+#include "utils.h"
+#include "visualOdometry.h"
+#include "matrixutils.h"
 #include "easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
 
 using namespace std;
-
-bool isRotationMatrix(cv::Mat &R)
-{
-    cv::Mat Rt;
-    transpose(R, Rt);
-    cv::Mat shouldBeIdentity = Rt * R;
-    cv::Mat I = cv::Mat::eye(3,3, shouldBeIdentity.type());
-     
-    return  norm(I, shouldBeIdentity) < 1e-6;
-}
- 
-// Calculates rotation matrix to euler angles
-// The result is the same as MATLAB except the order
-// of the euler angles ( x and z are swapped ).
-cv::Vec3d rotationMatrixToEulerAngles(cv::Mat &R)
-{
-    assert(isRotationMatrix(R));
-     
-    double sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) +  R.at<double>(1,0) * R.at<double>(1,0) );
- 
-    bool singular = sy < 1e-6; // If
- 
-    double x, y, z;
-    if (!singular)
-    {
-        x = atan2(R.at<double>(2,1) , R.at<double>(2,2));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = atan2(R.at<double>(1,0), R.at<double>(0,0));
-    }
-    else
-    {
-        x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
-        y = atan2(-R.at<double>(2,0), sy);
-        z = 0;
-    }
-    return cv::Vec3d(x, y, z);
-}
 
 int main(int argc, char **argv)
 {
@@ -84,7 +55,7 @@ int main(int argc, char **argv)
     }
     if(argc < 3)
     {
-        cerr << "Usage: ./run path_to_sequence path_to_calibration [optional]path_to_ground_truth_pose" << endl;
+        LOG(ERROR) << "Usage: ./run path_to_sequence path_to_calibration [optional]path_to_ground_truth_pose";
         return 1;
     }
 
@@ -98,7 +69,6 @@ int main(int argc, char **argv)
 
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
-    
     float fx = fSettings["Camera.fx"];
     float fy = fSettings["Camera.fy"];
     float cx = fSettings["Camera.cx"];
@@ -189,7 +159,6 @@ int main(int argc, char **argv)
         LOG(DEBUG) << "FPS: " << fps;
 
         display(frame_id, trajectory, pose, pose_matrix_gt, fps, display_ground_truth);
-
     }
 
     return 0;

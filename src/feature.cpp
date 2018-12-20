@@ -1,6 +1,8 @@
 #include "feature.h"
 #include "bucket.h"
 #include "easylogging++.h"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/video/tracking.hpp"
 
 void deleteUnmatchFeatures(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<uchar>& status)
 {
@@ -132,8 +134,6 @@ void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat
 
     deleteUnmatchFeaturesCircle(points_l_0, points_r_0, points_r_1, points_l_1, points_l_0_return,
                         status0, status1, status2, status3, current_features.ages);
-
-    // std::cout << "points : " << points_l_0.size() << " "<< points_r_0.size() << " "<< points_r_1.size() << " "<< points_l_1.size() << " "<<std::endl;
 }
 
 

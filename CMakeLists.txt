@@ -48,7 +48,7 @@ set(sources_visual_odom
         src/visualOdometry.cpp
         src/evaluate/evaluate_odometry.cpp
         src/evaluate/matrix.cpp
-        )
+        src/matrixutils.h)
 
 
 # Create the main executable, and link libraries
