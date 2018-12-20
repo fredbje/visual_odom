@@ -4,27 +4,6 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/video/tracking.hpp"
 
-void deleteUnmatchFeatures(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<uchar>& status)
-{
-    //getting rid of points for which the KLT tracking failed or those who have gone outside the frame
-    int indexCorrection = 0;
-    for( unsigned int i = 0; i < status.size(); i++)
-    {
-        assert( (i - indexCorrection) >= 0 );
-        cv::Point2f pt = points1.at(i - indexCorrection);
-        if( (status.at(i) == 0) || (pt.x < 0) || (pt.y < 0) )
-        {
-            if( (pt.x < 0) || (pt.y < 0) )
-            {
-                status.at(i) = 0;
-            }
-            points0.erase (points0.begin() + (i - indexCorrection));
-            points1.erase (points1.begin() + (i - indexCorrection));
-            indexCorrection++;
-        }
-    }
-}
-
 void featureDetectionFast(cv::Mat image, std::vector<cv::Point2f>& points)  
 {   
     //uses FAST as for feature dection, modify parameters as necessary
@@ -33,34 +12,6 @@ void featureDetectionFast(cv::Mat image, std::vector<cv::Point2f>& points)
     bool nonmaxSuppression = true;
     cv::FAST(image, keypoints, fast_threshold, nonmaxSuppression);
     cv::KeyPoint::convert(keypoints, points, std::vector<int>());
-}
-
-void featureDetectionGoodFeaturesToTrack(cv::Mat image, std::vector<cv::Point2f>& points)  
-{   
-    //uses GoodFeaturesToTrack for feature dection, modify parameters as necessary
-
-    int maxCorners = 5000;
-    double qualityLevel = 0.01;
-    double minDistance = 5.;
-    int blockSize = 3;
-    bool useHarrisDetector = false;
-    double k = 0.04;
-    cv::Mat mask;
-
-    cv::goodFeaturesToTrack( image, points, maxCorners, qualityLevel, minDistance, mask, blockSize, useHarrisDetector, k );
-}
-
-void featureTracking(cv::Mat img_1, cv::Mat img_2, std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, std::vector<uchar>& status)  
-{ 
-    //this function automatically gets rid of points for which tracking fails
-
-    std::vector<float> err;
-    cv::Size winSize=cv::Size(21,21);
-    cv::TermCriteria termcrit=cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01);
-
-    calcOpticalFlowPyrLK(img_1, img_2, points1, points2, status, err, winSize, 3, termcrit, 0, 0.001);
-    deleteUnmatchFeatures(points1, points2, status);
-
 }
 
 void deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
@@ -125,7 +76,6 @@ void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat
     std::vector<uchar> status1;
     std::vector<uchar> status2;
     std::vector<uchar> status3;
-
 
     calcOpticalFlowPyrLK(img_l_0, img_r_0, points_l_0, points_r_0, status0, err, winSize, 3, termcrit, 0, 0.001);
     calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSize, 3, termcrit, 0, 0.001);

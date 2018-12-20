@@ -3,10 +3,9 @@
 #include <math.h>
 #include <vector>
 #include <limits>
+#include <opencv2/core/core.hpp>
 
 #include "matrix.h"
-
-
 
 struct errors {
   int32_t first_frame;
@@ -18,8 +17,7 @@ struct errors {
     first_frame(first_frame),r_err(r_err),t_err(t_err),len(len),speed(speed) {}
 };
 
-
-std::vector<Matrix> loadPoses(std::string file_name);
+std::vector<cv::Mat> loadPoses(std::string file_name);
 
 std::vector<float> trajectoryDistances (std::vector<Matrix> &poses);
 

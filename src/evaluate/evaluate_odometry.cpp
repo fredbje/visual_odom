@@ -14,17 +14,17 @@ using namespace std;
 float lengths[] = {100,200,300,400,500,600,700,800};
 int32_t num_lengths = 8;
 
-vector<Matrix> loadPoses(string file_name) {
-  vector<Matrix> poses;
+vector<cv::Mat> loadPoses(string file_name) {
+  vector<cv::Mat> poses;
   FILE *fp = fopen(file_name.c_str(),"r");
   if (!fp)
     return poses;
   while (!feof(fp)) {
-    Matrix P = Matrix::eye(4);
-    if (fscanf(fp, "%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf",
-                   &P.val[0][0], &P.val[0][1], &P.val[0][2], &P.val[0][3],
-                   &P.val[1][0], &P.val[1][1], &P.val[1][2], &P.val[1][3],
-                   &P.val[2][0], &P.val[2][1], &P.val[2][2], &P.val[2][3] )==12) {
+    cv::Mat_<float> P = cv::Mat_<float>::eye(4, 4);
+    if( fscanf(fp, "%f %f %f %f %f %f %f %f %f %f %f %f",
+            &P(0, 0), &P(0, 1), &P(0, 2), &P(0, 3),
+            &P(1, 0), &P(1, 1), &P(1, 2), &P(1, 3),
+            &P(2, 0), &P(2, 1), &P(2, 2), &P(2, 3) )==12) {
       poses.push_back(P);
     }
   }
@@ -395,6 +395,7 @@ void saveStats (vector<errors> err,string dir) {
   fclose(fp);
 }
 
+/*
 bool eval (string result_sha,Mail* mail) {
 
   // ground truth and result directories
@@ -467,7 +468,7 @@ bool eval (string result_sha,Mail* mail) {
   // success
 	return true;
 }
-
+*/
 // int32_t main (int32_t argc,char *argv[]) {
 
 //   // we need 2 or 4 arguments!

@@ -5,8 +5,7 @@
 #--------------------------------------------------------------------------------------------
 
 # Camera configurations and distortion parameters (OpenCV)
-Camera.fx: 718.8560
-Camera.fy: 718.8560
+Camera.f: 718.8560
 Camera.cx: 607.1928
 Camera.cy: 185.2157
 

@@ -2,29 +2,25 @@
 #include "evaluate_odometry.h"
 #include "easylogging++.h"
 
-void loadImageLeft(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath){
+void loadImageLeft(cv::Mat& image_gray, int frame_id, std::string filepath){
     char file[200];
     sprintf(file, "image_0/%06d.png", frame_id);
-    
-    // sprintf(file, "image_0/%010d.png", frame_id);
+
     std::string filename = filepath + std::string(file);
 
-    image_color = cv::imread(filename, cv::IMREAD_COLOR);
-    cvtColor(image_color, image_gary, cv::COLOR_BGR2GRAY);
+    image_gray = cv::imread(filename, cv::IMREAD_GRAYSCALE);
 }
 
-void loadImageRight(cv::Mat& image_color, cv::Mat& image_gary, int frame_id, std::string filepath){
+void loadImageRight(cv::Mat& image_gray, int frame_id, std::string filepath){
     char file[200];
     sprintf(file, "image_1/%06d.png", frame_id);
 
-    // sprintf(file, "image_0/%010d.png", frame_id);
     std::string filename = filepath + std::string(file);
 
-    image_color = cv::imread(filename, cv::IMREAD_COLOR);
-    cvtColor(image_color, image_gary, cv::COLOR_BGR2GRAY);
+    image_gray = cv::imread(filename, cv::IMREAD_GRAYSCALE);
 }
 
-void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<Matrix>& pose_matrix_gt, float fps, bool show_gt)
+void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<cv::Mat>& pose_gt_mat, float fps, bool show_gt)
 {
     // draw estimated trajectory 
     int x = int(pose.at<double>(0)) + 300;
@@ -34,13 +30,13 @@ void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<Matri
     if (show_gt)
     {
       // draw ground truth trajectory 
-      cv::Mat pose_gt = cv::Mat::zeros(1, 3, CV_64F);
+      cv::Mat pose_gt = cv::Mat::zeros(1, 3, CV_32F);
       
-      pose_gt.at<double>(0) = pose_matrix_gt[frame_id].val[0][3];
-      pose_gt.at<double>(1) = pose_matrix_gt[frame_id].val[0][7];
-      pose_gt.at<double>(2) = pose_matrix_gt[frame_id].val[0][11];
-      x = int(pose_gt.at<double>(0)) + 300;
-      y = int(pose_gt.at<double>(2)) + 100;
+      pose_gt.at<float>(0) = pose_gt_mat[frame_id].at<float>(0, 3);
+      pose_gt.at<float>(1) = pose_gt_mat[frame_id].at<float>(1, 3);
+      pose_gt.at<float>(2) = pose_gt_mat[frame_id].at<float>(2, 3);
+      x = int(pose_gt.at<float>(0)) + 300;
+      y = int(pose_gt.at<float>(2)) + 100;
       circle(trajectory, cv::Point(x, y) ,1, CV_RGB(255,255,0), 2);
     }
     // print info

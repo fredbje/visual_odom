@@ -1,41 +1,11 @@
-/*
-#include "opencv2/video/tracking.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/calib3d/calib3d.hpp"
-
-#include <iostream>
-#include <ctype.h>
-#include <algorithm>
-#include <iterator>
-#include <vector>
-#include <ctime>
-#include <sstream>
-#include <fstream>
-#include <string>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/NonLinearOptimization>
-#include <unsupported/Eigen/NumericalDiff>
-#include <opencv2/core/eigen.hpp>
-
-#include "feature.h"
-#include "utils.h"
-#include "evaluate_odometry.h"
-#include "visualOdometry.h"
-
-#include "matrixutils.h"
- */
-
 #include "evaluate/evaluate_odometry.h"
 #include "utils.h"
 #include "visualOdometry.h"
 #include "matrixutils.h"
+#include "stereocamera.h"
 #include "easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
-
-using namespace std;
 
 int main(int argc, char **argv)
 {
@@ -45,12 +15,12 @@ int main(int argc, char **argv)
     // Load images and configurations parameters
     // -----------------------------------------
     bool display_ground_truth = false;
-    std::vector<Matrix> pose_matrix_gt;
+    std::vector<cv::Mat> pose_matrix_gt;
     if(argc == 4)
     {   display_ground_truth = true;
         LOG(INFO) << "Display ground truth trajectory";
         // load ground truth pose
-        string filename_pose = string(argv[3]);
+        std::string filename_pose = std::string(argv[3]);
         pose_matrix_gt = loadPoses(filename_pose);
     }
     if(argc < 3)
@@ -60,25 +30,22 @@ int main(int argc, char **argv)
     }
 
     // Sequence
-    string filepath = string(argv[1]);
+    std::string filepath = std::string(argv[1]);
     LOG(INFO) << "Filepath: " << filepath;
 
     // Camera configurations
-    string strSettingPath = string(argv[2]);
+    std::string strSettingPath = std::string(argv[2]);
     LOG(INFO) << "Calibration Filepath: " << strSettingPath;
 
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
-    float fx = fSettings["Camera.fx"];
-    float fy = fSettings["Camera.fy"];
-    float cx = fSettings["Camera.cx"];
-    float cy = fSettings["Camera.cy"];
-    float bf = fSettings["Camera.bf"];
+    StereoCamera stereoCamera(fSettings["Camera.f"],
+            fSettings["Camera.cx"],
+            fSettings["Camera.cy"],
+            fSettings["Camera.bf"]);
 
-    cv::Mat projMatrl = (cv::Mat_<float>(3, 4) << fx, 0., cx, 0., 0., fy, cy, 0., 0,  0., 1., 0.);
-    cv::Mat projMatrr = (cv::Mat_<float>(3, 4) << fx, 0., cx, bf, 0., fy, cy, 0., 0,  0., 1., 0.);
-    LOG(INFO) << "P_left: " << endl << projMatrl;
-    LOG(INFO) << "P_right: " << endl << projMatrr;
+    LOG(INFO) << "P_left: " << std::endl << stereoCamera.projMatL();
+    LOG(INFO) << "P_right: " << std::endl << stereoCamera.projMatR();
 
     // -----------------------------------------
     // Initialize variables
@@ -105,12 +72,9 @@ int main(int argc, char **argv)
     // ------------
     // Load first images
     // ------------
-    cv::Mat image_left_t0_color,  image_left_t0;
-
-    loadImageLeft(image_left_t0_color,  image_left_t0, init_frame_id, filepath);
-    
-    cv::Mat image_right_t0_color, image_right_t0;  
-    loadImageRight(image_right_t0_color, image_right_t0, init_frame_id, filepath);
+    cv::Mat image_left_t0, image_right_t0;
+    loadImageLeft(image_left_t0, init_frame_id, filepath);
+    loadImageRight(image_right_t0, init_frame_id, filepath);
 
     float fps;
 
@@ -120,28 +84,40 @@ int main(int argc, char **argv)
     // initializeImagesFeatures(init_frame_id, filepath, image_l, image_r, current_features);
 
     clock_t tic = clock();
-
+    VisualOdometryStereo vos(stereoCamera);
     for (int frame_id = init_frame_id; frame_id < 9000; frame_id++)
     {
-
         LOG(DEBUG) << "frame_id " << frame_id;
 
-        visualOdometry(frame_id, filepath,
-                       projMatrl, projMatrr,
-                       rotation, translation_mono, translation_stereo, 
-                       image_left_t0, image_right_t0,
-                       current_features);
+        // ------------
+        // Load images
+        // ------------
+        cv::Mat image_left_t1, image_right_t1;
+        loadImageLeft(image_left_t1, frame_id + 1, filepath);
+        loadImageRight(image_right_t1, frame_id + 1, filepath);
+
+        std::vector<cv::Point2f>  points_left_t0, points_right_t0, points_left_t1, points_right_t1, points_left_t0_return;   //vectors to store the coordinates of the feature points
+        vos.process(frame_id, filepath,
+                rotation, translation_mono, translation_stereo,
+                image_left_t1, image_right_t1,
+                image_left_t0, image_right_t0,
+                points_left_t0,
+                points_right_t0,
+                points_left_t1,
+                points_right_t1,
+                points_left_t0_return,
+                current_features);
 
         cv::Vec3f rotation_euler = rotationMatrixToEulerAngles(rotation);
         LOG(DEBUG) << "rotation: " << rotation_euler;
         LOG(DEBUG) << "translation: " << translation_stereo.t();
 
-        if(abs(rotation_euler[1])<0.1 && abs(rotation_euler[0])<0.1 && abs(rotation_euler[2])<0.1)
+        if( abs(rotation_euler[1]) < 0.1 && abs(rotation_euler[0]) < 0.1 && abs(rotation_euler[2]) < 0.1 )
         {
             integrateOdometryStereo(frame_id, frame_pose, rotation, translation_stereo);
-
-        } else {
-
+        }
+        else
+        {
             LOG(WARNING) << "Too large rotation";
         }
 
@@ -158,7 +134,44 @@ int main(int argc, char **argv)
         LOG(DEBUG) << "Pose" << pose.t();
         LOG(DEBUG) << "FPS: " << fps;
 
+
         display(frame_id, trajectory, pose, pose_matrix_gt, fps, display_ground_truth);
+
+        // -----------------------------------------
+        // Prepare image for next frame
+        // -----------------------------------------
+        image_left_t0 = image_left_t1;
+        image_right_t0 = image_right_t1;
+
+        // -----------------------------------------
+        // Display
+        // -----------------------------------------
+
+        int radius = 2;
+        // cv::Mat vis = image_left_t0.clone();
+
+        cv::Mat vis;
+
+        cv::cvtColor(image_left_t1, vis, cv::COLOR_GRAY2BGR, 3);
+
+
+        for ( const auto& point_left_t0 : points_left_t0 )
+        {
+            circle(vis, cv::Point2f(point_left_t0.x, point_left_t0.y), radius, CV_RGB(0,255,0));
+        }
+
+        for ( const auto& point_left_t1 : points_left_t1 )
+        {
+            circle(vis, cv::Point2f(point_left_t1.x, point_left_t1.y), radius, CV_RGB(255,0,0));
+        }
+
+        assert(points_left_t0.size() == points_left_t1.size());
+        for ( unsigned int i = 0; i < points_left_t1.size(); i++ )
+        {
+            cv::line(vis, points_left_t0[i], points_left_t1[i], CV_RGB(0,255,0));
+        }
+
+        imshow("vis ", vis );
     }
 
     return 0;
