@@ -1,15 +1,29 @@
 %YAML:1.0
 
-#--------------------------------------------------------------------------------------------
-# Camera Parameters. Adjust them!
-#--------------------------------------------------------------------------------------------
+sequenceDir: '/home/fbjerkas/datasets/kitti-gray/sequences/00'
+timestampsFile: '/home/fbjerkas/datasets/kitti-gray/sequences/00/times.txt'
+gtPosesFile: '/home/fbjerkas/datasets/kitti-poses/dataset/poses/00.txt'
+oxtsDir: '/home/fbjerkas/datasets/2011_10_03/2011_10_03_drive_0027_sync/oxts/data'
+imu2VeloCalibFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_imu_to_velo.txt'
+velo2CamCalibFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_velo_to_cam.txt'
+vocabularyFile: '/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt'
+logSettingsFile: '/home/fbjerkas/src/visual_odom/configurations/easylogging.conf'
 
-# Camera configurations and distortion parameters (OpenCV). Demands fx = fy = f
-Camera.f: 718.8560
+# interpreted as boolean. 0 false, else true
+displayGroundTruth: 1
+
+# Camera configurations and distortion parameters (OpenCV).
+Camera.fx: 718.8560
+Camera.fy: 718.8560
 Camera.cx: 607.1928
 Camera.cy: 185.2157
 
-# stereo baseline times fx
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+# stereo baseline times fx. Should be negative
 Camera.bf: -386.1448
 
 Camera.width: 1241

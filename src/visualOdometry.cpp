@@ -58,9 +58,9 @@ void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stere
         LOG(DEBUG) << "Current feature set size: " << current_features.points.size();
     }
 
-    // --------------------------------------------------------
+    // -------------------------------------------------------------------
     // Feature tracking using KLT tracker, bucketing and circular matching
-    // --------------------------------------------------------
+    // -------------------------------------------------------------------
 
     bucketingFeatures(stereoCamera_.height(), stereoCamera_.width(), current_features, bucketSize_, featuresPerBucket_);
 
@@ -78,13 +78,6 @@ void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stere
 
     current_features.points = points_left_t1;
 
-    // -----------------------------------------------------------
-    // Rotation (R) estimation using Nister's Five Points Algorithm
-    // -----------------------------------------------------------
-    cv::Mat E, mask;
-    E = cv::findEssentialMat(points_left_t1, points_left_t0, stereoCamera_.f(), stereoCamera_.principalPoint(), cv::RANSAC, 0.999, 1.0, mask);
-    cv::recoverPose(E, points_left_t1, points_left_t0, rotation, translationMonoIgnored_, stereoCamera_.f(), stereoCamera_.principalPoint(), mask);
-
     // ---------------------
     // Triangulate 3D Points
     // ---------------------
@@ -92,13 +85,27 @@ void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stere
     cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), points_left_t0, points_right_t0, points4D_t0 );
     cv::convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
 
-    // ------------------------------------------------
-    // Translation (t) estimation by use solvePnPRansac (P3P)
-    // ------------------------------------------------
-    cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvecIgnored_, translation_stereo,
+    // ---------------------------------------------
+    // Rotation and translation estimation using PNP
+    //----------------------------------------------
+    cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_stereo,
                         useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_,
                         inliersIgnored_, flags_ );
 
+    if(stereoCamera_.fx() == stereoCamera_.fy())
+    {
+        // ------------------------------------------------------------------------------------
+        // Rotation (R) estimation using Nister's Five Points Algorithm (yields better results)
+        // ------------------------------------------------------------------------------------
+        cv::Mat E, mask;
+        E = cv::findEssentialMat(points_left_t1, points_left_t0, stereoCamera_.fx(), stereoCamera_.principalPoint(), cv::RANSAC, 0.999, 1.0, mask);
+        cv::recoverPose(E, points_left_t1, points_left_t0, rotation, translationMonoIgnored_, stereoCamera_.fx(), stereoCamera_.principalPoint(), mask);
+    }
+    else
+    {
+        cv::Rodrigues(rvec_, rotation);
+        rotation = rotation.t();
+    }
 
     //void cuda::solvePnPRansac(const Mat& object, const Mat& image, const Mat& camera_mat, const Mat& dist_coef, Mat& rvec, Mat& tvec, bool use_extrinsic_guess=false, int num_iters=100, float max_dist=8.0, int min_inlier_count=100, vector<int>* inliers=NULL)
 }

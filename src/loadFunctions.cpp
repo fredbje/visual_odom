@@ -101,7 +101,7 @@ bool loadTimeStamps(const std::string &strTimestampsFile, std::vector<double> &v
 
     std::ifstream fTimes;
     fTimes.open(strTimestampsFile.c_str());
-    if(fTimes.is_open())
+    if(!fTimes.is_open())
     {
         LOG(ERROR) << "Could not open " << strTimestampsFile;
         return false;
@@ -124,8 +124,7 @@ bool loadTimeStamps(const std::string &strTimestampsFile, std::vector<double> &v
 }
 
 
-bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPoses,
-                 const cv::Mat& imu_T_cam, const oxts &navdata0)
+bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPoses)
 {
     if(!bfs::is_regular_file(bfs::path(strGtPosesFile)))
     {
@@ -144,7 +143,7 @@ bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPos
         LOG(ERROR) << "Error, could not open ground truth pose file!";
         return false;
     }
-
+/*
     // Data collected from oxts data frame 1.
     cv::Mat enu_R_imu = rotMatX(static_cast<float>(navdata0.roll))
             * rotMatY(static_cast<float>(navdata0.pitch))
@@ -152,7 +151,7 @@ bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPos
 
     cv::Mat enu_T_imu = cv::Mat::eye(4, 4, CV_32F);
     enu_R_imu.copyTo(enu_T_imu(cv::Rect(0, 0, enu_R_imu.cols, enu_R_imu.rows)));
-
+*/
     while(std::getline(f, strLine))
     {
         std::istringstream iss(strLine);

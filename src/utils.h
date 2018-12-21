@@ -25,8 +25,6 @@
 #include <string>
 #include <opencv2/core.hpp>
 
-std::vector<cv::Mat> loadPoses(std::string file_name);
-
 void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<cv::Mat>& pose_gt, float fps, bool showgt);
 
 void integrateOdometryStereo(cv::Mat& frame_pose, const cv::Mat& rotation,

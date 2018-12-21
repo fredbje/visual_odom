@@ -1,27 +1,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include "utils.h"
-//#include "evaluate_odometry.h"
 #include "easylogging++.h"
-
-std::vector<cv::Mat> loadPoses(std::string file_name)
-{
-    std::vector<cv::Mat> poses;
-    FILE *fp = fopen(file_name.c_str(), "r");
-    if (!fp)
-        return poses;
-    while (!feof(fp)) {
-        cv::Mat_<float> P = cv::Mat_<float>::eye(4, 4);
-        if( fscanf(fp, "%f %f %f %f %f %f %f %f %f %f %f %f",
-                   &P(0, 0), &P(0, 1), &P(0, 2), &P(0, 3),
-                   &P(1, 0), &P(1, 1), &P(1, 2), &P(1, 3),
-                   &P(2, 0), &P(2, 1), &P(2, 2), &P(2, 3) ) == 12) {
-            poses.push_back(P);
-        }
-    }
-    fclose(fp);
-    return poses;
-}
 
 void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<cv::Mat>& pose_gt_mat, float fps, bool show_gt)
 {

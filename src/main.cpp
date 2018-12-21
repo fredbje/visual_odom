@@ -12,43 +12,82 @@ INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char **argv)
 {
-    el::Loggers::configureFromGlobal("../configurations/easylogging.conf");
-
-    // -----------------------------------------
-    // Load images and configurations parameters
-    // -----------------------------------------
-    bool display_ground_truth = false;
-    std::vector<cv::Mat> pose_matrix_gt;
-    if(argc == 4)
+    if(argc < 1)
     {
-        display_ground_truth = true;
-        LOG(INFO) << "Display ground truth trajectory";
-        // load ground truth pose
-        std::string filename_pose = std::string(argv[3]);
-        pose_matrix_gt = loadPoses(filename_pose);
-    }
-    if(argc < 3)
-    {
-        LOG(ERROR) << "Usage: ./run path_to_sequence path_to_calibration [optional]path_to_ground_truth_pose";
+        LOG(ERROR) << "Usage: ./run path_to_settings";
         return 1;
     }
 
-    // Sequence
-    std::string filepath = std::string(argv[1]);
-    LOG(INFO) << "Filepath: " << filepath;
-
-    // Camera configurations
-    std::string strSettingPath = std::string(argv[2]);
+    // Settings file
+    std::string strSettingPath = std::string(argv[1]);
     LOG(INFO) << "Calibration Filepath: " << strSettingPath;
 
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
-    StereoCamera stereoCamera(fSettings["Camera.f"],
+    if(!fSettings.isOpened())
+    {
+        LOG(ERROR) << "Could not open settings file";
+    }
+
+    std::string sequenceDirectory = fSettings["sequenceDir"];
+    std::string timestampsFile = fSettings["timestampsFile"];
+    std::string gtPosesFile = fSettings["gtPosesFile"];
+    std::string oxtsDirectory = fSettings["oxtsDir"];
+    std::string imu2VeloCalibrationFile = fSettings["imu2VeloCalibFile"];
+    std::string velo2CamCalibrationFile = fSettings["velo2CamCalibFile"];
+    std::string vocabularyFile = fSettings["vocabularyFile"];
+    std::string logSettingsFile = fSettings["logSettingsFile"];
+
+    el::Loggers::configureFromGlobal(logSettingsFile.c_str());
+
+    std::vector<double> timestamps;
+    if(!loadTimeStamps(timestampsFile, timestamps))
+    {
+        LOG(ERROR) << "Could not load timestamps";
+        return 1;
+    }
+
+    std::vector<oxts> oxtsData;
+    if(!loadOxtsData(oxtsDirectory, oxtsData))
+    {
+        LOG(ERROR) << "Could not load oxts data";
+        return 1;
+    }
+
+    cv::Mat imu_T_cam;
+    if(!loadCam2ImuTransform(imu2VeloCalibrationFile, velo2CamCalibrationFile, imu_T_cam))
+    {
+        LOG(ERROR) << "Could not load imu_T_cam matrix";
+        return 1;
+    }
+
+    // -----------------------------------------
+    // Load images and configurations parameters
+    // -----------------------------------------
+    bool displayGroundTruth = static_cast<int>(fSettings["displayGroundTruth"]) != 0;
+    std::vector<cv::Mat> gtPoses;
+    if(displayGroundTruth)
+    {
+        LOG(INFO) << "Display ground truth trajectory";
+
+        if(!loadGtPoses(gtPosesFile, gtPoses))
+        {
+            LOG(ERROR) << "Could not open ground truth poses which was requested";
+            return 1;
+        }
+    }
+
+    StereoCamera stereoCamera(fSettings["Camera.fx"],
+            fSettings["Camera.fy"],
             fSettings["Camera.cx"],
             fSettings["Camera.cy"],
             fSettings["Camera.bf"],
             fSettings["Camera.width"],
-            fSettings["Camera.height"]);
+            fSettings["Camera.height"],
+            fSettings["Camera.k1"],
+            fSettings["Camera.k2"],
+            fSettings["Camera.p1"],
+            fSettings["Camera.p2"]);
 
     LOG(INFO) << "P_left: " << std::endl << stereoCamera.projMatL();
     LOG(INFO) << "P_right: " << std::endl << stereoCamera.projMatR();
@@ -76,7 +115,7 @@ int main(int argc, char **argv)
     // Load first images
     // ------------
     std::vector<std::string> imageFileNamesLeft, imageFileNamesRight;
-    if(!loadImageFileNames(argv[1], imageFileNamesLeft, imageFileNamesRight))
+    if(!loadImageFileNames(sequenceDirectory, imageFileNamesLeft, imageFileNamesRight))
     {
         LOG(ERROR) << "Could not load image file names.";
         return 1;
@@ -143,7 +182,7 @@ int main(int argc, char **argv)
         LOG(DEBUG) << "Pose" << pose.t();
         LOG(DEBUG) << "FPS: " << fps;
 
-        display(frame_id, trajectoryPlot, pose, pose_matrix_gt, fps, display_ground_truth);
+        display(frame_id, trajectoryPlot, pose, gtPoses, fps, displayGroundTruth);
 
         // -----------------------------------------
         // Prepare image for next frame
