@@ -3,8 +3,24 @@
 #include "matrixutils.h"
 #include "utils.h"
 #include "opencv2/video/tracking.hpp"
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudaoptflow.hpp>
+#include <opencv2/cudalegacy.hpp>
 #include "bucket.h"
 
+void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
+{
+    vec.resize(d_mat.cols);
+    cv::Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
+    d_mat.download(mat);
+}
+
+void download(const cv::cuda::GpuMat& d_mat, std::vector<uchar>& vec)
+{
+    vec.resize(d_mat.cols);
+    cv::Mat mat(1, d_mat.cols, CV_8UC1, (void*)&vec[0]);
+    d_mat.download(mat);
+}
 
 void VisualOdometryStereo::featureDetectionFast(const cv::Mat& image, std::vector<cv::Point2f>& points)
 {
@@ -60,25 +76,63 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>&
     }
 }
 
-void VisualOdometryStereo::circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat img_r_1,
-                      std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
-                      std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
-                      std::vector<cv::Point2f>& points_l_0_return,
-                      FeatureSet& current_features)
+void VisualOdometryStereo::circularMatching(const cv::Mat& img_l_0, const cv::Mat& img_r_0,
+        const cv::Mat& img_l_1, const cv::Mat& img_r_1,
+        std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
+        std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
+        std::vector<cv::Point2f>& points_l_0_return,
+        FeatureSet& current_features)
 {
     //this function automatically gets rid of points for which tracking fails
-    std::vector<float> err;
-    cv::Size winSize=cv::Size(21,21);
-    cv::TermCriteria termcrit=cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01);
 
     std::vector<uchar> status0, status1, status2, status3;
 
-    // void calcOpticalFlowPyrLK(InArr prevImg, InArr nextImg, InArr prevPts, InOutArr nextPts, OutArr status, OutArr err, Size winSize=Size(21,21), int maxLevel=3, TermCriteria criteria=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01), int flags=0, double minEigThreshold=1e-4 )
-    cv::calcOpticalFlowPyrLK(img_l_0, img_r_0, points_l_0, points_r_0, status0, err, winSize, 3, termcrit, 0, 0.001);
-    cv::calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSize, 3, termcrit, 0, 0.001);
-    cv::calcOpticalFlowPyrLK(img_r_1, img_l_1, points_r_1, points_l_1, status2, err, winSize, 3, termcrit, 0, 0.001);
-    cv::calcOpticalFlowPyrLK(img_l_1, img_l_0, points_l_1, points_l_0_return, status3, err, winSize, 3, termcrit, 0, 0.001);
+   if(cudaCircularMatching_)
+   {
+       cv::cuda::GpuMat d_img_l_0(img_l_0);
+       cv::cuda::GpuMat d_img_r_0(img_r_0);
+       cv::cuda::GpuMat d_img_l_1(img_l_1);
+       cv::cuda::GpuMat d_img_r_1(img_r_1);
 
+       cv::cuda::GpuMat d_points_l_0(points_l_0);
+       cv::cuda::GpuMat d_points_r_0(points_r_0);
+       cv::cuda::GpuMat d_points_l_1(points_l_1);
+       cv::cuda::GpuMat d_points_r_1(points_r_1);
+       cv::cuda::GpuMat d_points_l_0_return(points_l_0_return);
+
+       cv::cuda::GpuMat d_status0, d_status1, d_status2, d_status3;
+
+       cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(winSize_, maxLevel_, opticalFlowIters_);
+       d_pyrLK_sparse->calc(d_img_l_0, d_img_r_0, d_points_l_0, d_points_r_0, d_status0);
+       d_pyrLK_sparse->calc(d_img_r_0, d_img_r_1, d_points_r_0, d_points_r_1, d_status1);
+       d_pyrLK_sparse->calc(d_img_r_1, d_img_l_1, d_points_r_1, d_points_l_1, d_status2);
+       d_pyrLK_sparse->calc(d_img_l_1, d_img_l_0, d_points_l_1, d_points_l_0_return, d_status3);
+
+       download(d_points_r_0, points_r_0);
+       download(d_points_r_1, points_r_1);
+       download(d_points_l_1, points_l_1);
+       download(d_points_l_0_return, points_l_0_return);
+
+       download(d_status0, status0);
+       download(d_status1, status1);
+       download(d_status2, status2);
+       download(d_status3, status3);
+   }
+   else
+   {
+       std::vector<float> err;
+
+       cv::calcOpticalFlowPyrLK(img_l_0, img_r_0, points_l_0, points_r_0, status0, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(img_r_1, img_l_1, points_r_1, points_l_1, status2, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(img_l_1, img_l_0, points_l_1, points_l_0_return, status3, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+   }
+
+
+
+/*
+
+*/
     deleteUnmatchFeaturesCircle(points_l_0, points_r_0, points_r_1, points_l_1, points_l_0_return,
                                 status0, status1, status2, status3, current_features.ages);
 }
@@ -163,7 +217,7 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points,
     }
 }
 
-void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stereo,
+bool VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stereo,
         cv::Mat& imageLeftCurr,
         cv::Mat& imageRightCurr,
         cv::Mat& imageLeftPrev,
@@ -220,14 +274,15 @@ void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stere
     // ---------------------------------------------
     // Rotation and translation estimation using PNP
     //----------------------------------------------
+
     cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_stereo,
                         useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_,
                         inliersIgnored_, flags_ );
 
-    if(stereoCamera_.fx() == stereoCamera_.fy())
+    if(estimateRotation5Pt_)
     {
         // ------------------------------------------------------------------------------------
-        // Rotation (R) estimation using Nister's Five Points Algorithm (yields better results) but little slower
+        // Rotation (R) estimation using Nister's Five Points Algorithm (yields better results, but little slower)
         // ------------------------------------------------------------------------------------
         cv::Mat E, mask;
         E = cv::findEssentialMat(points_left_t1, points_left_t0, stereoCamera_.K(), cv::RANSAC, 0.999, 1.0, mask);
@@ -239,7 +294,7 @@ void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stere
         rotation = rotation.t();
     }
 
-    //void cuda::solvePnPRansac(const Mat& object, const Mat& image, const Mat& camera_mat, const Mat& dist_coef, Mat& rvec, Mat& tvec, bool use_extrinsic_guess=false, int num_iters=100, float max_dist=8.0, int min_inlier_count=100, vector<int>* inliers=NULL)
+    return true;
 }
 
 

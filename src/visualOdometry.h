@@ -12,7 +12,7 @@ public:
     explicit VisualOdometryStereo(cv::FileStorage& fSettings) : stereoCamera_(fSettings) {}
     ~VisualOdometryStereo() = default;
 
-    void process(cv::Mat& rotation, cv::Mat& translation_stereo,
+    bool process(cv::Mat& rotation, cv::Mat& translation_stereo,
             cv::Mat& image_left_t1,
             cv::Mat& image_right_t1,
             cv::Mat& image_left_t0,
@@ -33,11 +33,12 @@ public:
                                      std::vector<uchar>& status2, std::vector<uchar>& status3,
                                      std::vector<int>& ages);
 
-    void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat img_r_1,
-                          std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
-                          std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
-                          std::vector<cv::Point2f>& points_l_0_return,
-                          FeatureSet& current_features);
+    void circularMatching(const cv::Mat& img_l_0, const cv::Mat& img_r_0,
+            const cv::Mat& img_l_1, const cv::Mat& img_r_1,
+            std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
+            std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
+            std::vector<cv::Point2f>& points_l_0_return,
+            FeatureSet& current_features);
 
     void bucketingFeatures(int image_height, int image_width, FeatureSet& current_features, int bucket_size, int features_per_bucket);
 
@@ -54,6 +55,7 @@ private:
     // ---------------------------
     // Settings for solvePnpRansac
     // ---------------------------
+    int cudaPnpRansac_ = true;
     int iterationsCount_ = 500;        // number of Ransac iterations.
     float reprojectionError_ = 2.0;    // maximum allowed distance to consider it an inlier.
     float confidence_ = 0.95;          // RANSAC successful confidence.
@@ -75,6 +77,18 @@ private:
     bool nonmaxSuppression_ = true;
 
     bool estimateRotation5Pt_ = true;
+
+
+    // ------------------------------
+    // Settings for circular matching
+    // ------------------------------
+    bool cudaCircularMatching_ = true;
+    cv::Size winSize_ = cv::Size(21,21);
+    cv::TermCriteria termcrit_ = cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01);
+    int maxLevel_ = 3;
+    double minEigThreshold_ = 1e-4;
+    int opticalFlowFlags_ = 0;
+    int opticalFlowIters_ = 30;
 };
 
 

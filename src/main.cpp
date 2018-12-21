@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     
     cv::Mat frame_pose = cv::Mat::eye(4, 4, CV_64F);
 
-    LOG(INFO) << "frame_pose " << frame_pose;
+    LOG(INFO) << "Frame_pose " << frame_pose;
 
     cv::Mat trajectoryPlot = cv::Mat::zeros(600, 1200, CV_8UC3);
 
