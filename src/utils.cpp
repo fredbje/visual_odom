@@ -1,23 +1,26 @@
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 #include "utils.h"
-#include "evaluate_odometry.h"
+//#include "evaluate_odometry.h"
 #include "easylogging++.h"
 
-void loadImageLeft(cv::Mat& image_gray, int frame_id, std::string filepath){
-    char file[200];
-    sprintf(file, "image_0/%06d.png", frame_id);
-
-    std::string filename = filepath + std::string(file);
-
-    image_gray = cv::imread(filename, cv::IMREAD_GRAYSCALE);
-}
-
-void loadImageRight(cv::Mat& image_gray, int frame_id, std::string filepath){
-    char file[200];
-    sprintf(file, "image_1/%06d.png", frame_id);
-
-    std::string filename = filepath + std::string(file);
-
-    image_gray = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+std::vector<cv::Mat> loadPoses(std::string file_name)
+{
+    std::vector<cv::Mat> poses;
+    FILE *fp = fopen(file_name.c_str(), "r");
+    if (!fp)
+        return poses;
+    while (!feof(fp)) {
+        cv::Mat_<float> P = cv::Mat_<float>::eye(4, 4);
+        if( fscanf(fp, "%f %f %f %f %f %f %f %f %f %f %f %f",
+                   &P(0, 0), &P(0, 1), &P(0, 2), &P(0, 3),
+                   &P(1, 0), &P(1, 1), &P(1, 2), &P(1, 3),
+                   &P(2, 0), &P(2, 1), &P(2, 2), &P(2, 3) ) == 12) {
+            poses.push_back(P);
+        }
+    }
+    fclose(fp);
+    return poses;
 }
 
 void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<cv::Mat>& pose_gt_mat, float fps, bool show_gt)
@@ -49,7 +52,7 @@ void display(int frame_id, cv::Mat& trajectory, cv::Mat& pose, std::vector<cv::M
     cv::waitKey(1);
 }
 
-void integrateOdometryStereo(int frame_i, cv::Mat& frame_pose, const cv::Mat& rotation, const cv::Mat& translation_stereo)
+void integrateOdometryStereo(cv::Mat& frame_pose, const cv::Mat& rotation, const cv::Mat& translation_stereo)
 {
     cv::Mat rigid_body_transformation;
     cv::Mat addup = (cv::Mat_<double>(1, 4) << 0, 0, 0, 1);

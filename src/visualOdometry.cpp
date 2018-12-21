@@ -30,23 +30,22 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points,
     }
 }
 
-void VisualOdometryStereo::process(int current_frame_id, std::string filepath,
-                    cv::Mat& rotation, cv::Mat& translation_mono, cv::Mat& translation_stereo,
-                    cv::Mat& image_left_t1,
-                    cv::Mat& image_right_t1,
-                    cv::Mat& image_left_t0,
-                    cv::Mat& image_right_t0,
-                    std::vector<cv::Point2f>& points_left_t0,
-                    std::vector<cv::Point2f>& points_right_t0,
-                    std::vector<cv::Point2f>& points_left_t1,
-                    std::vector<cv::Point2f>& points_right_t1,
-                    std::vector<cv::Point2f>& points_left_t0_return,
-                    FeatureSet& current_features)
+void VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stereo,
+        cv::Mat& imageLeftCurr,
+        cv::Mat& imageRightCurr,
+        cv::Mat& imageLeftPrev,
+        cv::Mat& imageRightPrev,
+        std::vector<cv::Point2f>& points_left_t0,
+        std::vector<cv::Point2f>& points_right_t0,
+        std::vector<cv::Point2f>& points_left_t1,
+        std::vector<cv::Point2f>& points_right_t1,
+        std::vector<cv::Point2f>& points_left_t0_return,
+        FeatureSet& current_features)
 {
+
     // ----------------------------
     // Feature detection using FAST
     // ----------------------------
-
     if (current_features.size() < 2000)
     {
         // use all new features
@@ -54,7 +53,7 @@ void VisualOdometryStereo::process(int current_frame_id, std::string filepath,
         // current_features.ages = std::vector<int>(current_features.points.size(), 0);
 
         // append new features with old features
-        appendNewFeatures(image_left_t0, current_features);   
+        appendNewFeatures(imageLeftPrev, current_features);
 
         LOG(DEBUG) << "Current feature set size: " << current_features.points.size();
     }
@@ -62,13 +61,11 @@ void VisualOdometryStereo::process(int current_frame_id, std::string filepath,
     // --------------------------------------------------------
     // Feature tracking using KLT tracker, bucketing and circular matching
     // --------------------------------------------------------
-    int bucket_size = 50;
-    int features_per_bucket = 4;
-    bucketingFeatures(image_left_t0.rows, image_left_t0.cols, current_features, bucket_size, features_per_bucket);
+
+    bucketingFeatures(stereoCamera_.height(), stereoCamera_.width(), current_features, bucketSize_, featuresPerBucket_);
 
     points_left_t0 = current_features.points;
-    
-    circularMatching(image_left_t0, image_right_t0, image_left_t1, image_right_t1,
+    circularMatching(imageLeftPrev, imageRightPrev, imageLeftCurr, imageRightCurr,
                      points_left_t0, points_right_t0, points_left_t1, points_right_t1, points_left_t0_return, current_features);
 
     std::vector<bool> status;
@@ -82,40 +79,28 @@ void VisualOdometryStereo::process(int current_frame_id, std::string filepath,
     current_features.points = points_left_t1;
 
     // -----------------------------------------------------------
-    // Rotation(R) estimation using Nister's Five Points Algorithm
+    // Rotation (R) estimation using Nister's Five Points Algorithm
     // -----------------------------------------------------------
-
-    //recovering the pose and the essential cv::matrix
     cv::Mat E, mask;
     E = cv::findEssentialMat(points_left_t1, points_left_t0, stereoCamera_.f(), stereoCamera_.principalPoint(), cv::RANSAC, 0.999, 1.0, mask);
-    cv::recoverPose(E, points_left_t1, points_left_t0, rotation, translation_mono, stereoCamera_.f(), stereoCamera_.principalPoint(), mask);
+    cv::recoverPose(E, points_left_t1, points_left_t0, rotation, translationMonoIgnored_, stereoCamera_.f(), stereoCamera_.principalPoint(), mask);
 
     // ---------------------
     // Triangulate 3D Points
     // ---------------------
-    cv::Mat points4D_t0;
-    triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), points_left_t0, points_right_t0, points4D_t0 );
+    cv::Mat points4D_t0, points3D_t0;
+    cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), points_left_t0, points_right_t0, points4D_t0 );
+    cv::convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
 
     // ------------------------------------------------
-    // Translation (t) estimation by use solvePnPRansac
+    // Translation (t) estimation by use solvePnPRansac (P3P)
     // ------------------------------------------------
-    cv::Mat points3D_t0;
-    convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
-    cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);  
-    cv::Mat inliers;  
-    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);
+    cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvecIgnored_, translation_stereo,
+                        useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_,
+                        inliersIgnored_, flags_ );
 
-    int iterationsCount = 500;        // number of Ransac iterations.
-    float reprojectionError = 2.0;    // maximum allowed distance to consider it an inlier.
-    float confidence = 0.95;          // RANSAC successful confidence.
-    bool useExtrinsicGuess = true;
-    int flags =cv::SOLVEPNP_ITERATIVE;
 
-    cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), distCoeffs, rvec, translation_stereo,
-                        useExtrinsicGuess, iterationsCount, reprojectionError, confidence,
-                        inliers, flags );
-
-    LOG(DEBUG) << "Inliers size: " << inliers.size();
+    //void cuda::solvePnPRansac(const Mat& object, const Mat& image, const Mat& camera_mat, const Mat& dist_coef, Mat& rvec, Mat& tvec, bool use_extrinsic_guess=false, int num_iters=100, float max_dist=8.0, int min_inlier_count=100, vector<int>* inliers=NULL)
 }
 
 

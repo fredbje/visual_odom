@@ -4,7 +4,7 @@
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
 
-# Camera configurations and distortion parameters (OpenCV)
+# Camera configurations and distortion parameters (OpenCV). Demands fx = fy = f
 Camera.f: 718.8560
 Camera.cx: 607.1928
 Camera.cy: 185.2157
@@ -12,6 +12,8 @@ Camera.cy: 185.2157
 # stereo baseline times fx
 Camera.bf: -386.1448
 
+Camera.width: 1241
+Camera.height: 376
 
 # Close/Far threshold. Baseline times.
 ThDepth: 35

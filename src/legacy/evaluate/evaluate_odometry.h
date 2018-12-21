@@ -17,8 +17,6 @@ struct errors {
     first_frame(first_frame),r_err(r_err),t_err(t_err),len(len),speed(speed) {}
 };
 
-std::vector<cv::Mat> loadPoses(std::string file_name);
-
 std::vector<float> trajectoryDistances (std::vector<Matrix> &poses);
 
 void plotPathPlot (std::string dir,std::vector<int32_t> &roi,int32_t idx);

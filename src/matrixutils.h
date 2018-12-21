@@ -79,5 +79,40 @@ inline cv::Mat euler2rot(cv::Mat& rotationMatrix, const cv::Mat & euler)
     return rotationMatrix;
 }
 
+inline cv::Mat rotMatX(const float& angle)
+{
+    float s = sinf(angle);
+    float c = cosf(angle);
+    cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
+    R.at<float>(1, 1) = c;
+    R.at<float>(1, 2) = -s;
+    R.at<float>(2, 1) = s;
+    R.at<float>(2, 2) = c;
+    return R;
+}
+
+inline cv::Mat rotMatY(const float& angle)
+{
+    float s = sinf(angle);
+    float c = cosf(angle);
+    cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
+    R.at<float>(0, 0) = c;
+    R.at<float>(0, 2) = s;
+    R.at<float>(2, 0) = -s;
+    R.at<float>(2, 2) = c;
+    return R;
+}
+
+inline cv::Mat rotMatZ(const float& angle)
+{
+    float s = sinf(angle);
+    float c = cosf(angle);
+    cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
+    R.at<float>(0, 0) = c;
+    R.at<float>(0, 1) = -s;
+    R.at<float>(1, 0) = s;
+    R.at<float>(1, 1) = c;
+    return R;
+}
 
 #endif //VISUALODOMETRY_MATRIXUTILS_H

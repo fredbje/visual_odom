@@ -76,7 +76,7 @@ void circularMatching(cv::Mat img_l_0, cv::Mat img_r_0, cv::Mat img_l_1, cv::Mat
     std::vector<uchar> status1;
     std::vector<uchar> status2;
     std::vector<uchar> status3;
-
+    // void calcOpticalFlowPyrLK(InArr prevImg, InArr nextImg, InArr prevPts, InOutArr nextPts, OutArr status, OutArr err, Size winSize=Size(21,21), int maxLevel=3, TermCriteria criteria=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01), int flags=0, double minEigThreshold=1e-4 )
     calcOpticalFlowPyrLK(img_l_0, img_r_0, points_l_0, points_r_0, status0, err, winSize, 3, termcrit, 0, 0.001);
     calcOpticalFlowPyrLK(img_r_0, img_r_1, points_r_0, points_r_1, status1, err, winSize, 3, termcrit, 0, 0.001);
     calcOpticalFlowPyrLK(img_r_1, img_l_1, points_r_1, points_l_1, status2, err, winSize, 3, termcrit, 0, 0.001);
@@ -127,7 +127,6 @@ void bucketingFeatures(int image_height, int image_width, FeatureSet& current_fe
             Buckets[buckets_idx].get_features(current_features);
         }
     }
-
     LOG(DEBUG) << "current features number after bucketing: " << current_features.size();
 }
 

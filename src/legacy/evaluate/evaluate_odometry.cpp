@@ -14,24 +14,6 @@ using namespace std;
 float lengths[] = {100,200,300,400,500,600,700,800};
 int32_t num_lengths = 8;
 
-vector<cv::Mat> loadPoses(string file_name) {
-  vector<cv::Mat> poses;
-  FILE *fp = fopen(file_name.c_str(),"r");
-  if (!fp)
-    return poses;
-  while (!feof(fp)) {
-    cv::Mat_<float> P = cv::Mat_<float>::eye(4, 4);
-    if( fscanf(fp, "%f %f %f %f %f %f %f %f %f %f %f %f",
-            &P(0, 0), &P(0, 1), &P(0, 2), &P(0, 3),
-            &P(1, 0), &P(1, 1), &P(1, 2), &P(1, 3),
-            &P(2, 0), &P(2, 1), &P(2, 2), &P(2, 3) )==12) {
-      poses.push_back(P);
-    }
-  }
-  fclose(fp);
-  return poses;
-}
-
 vector<float> trajectoryDistances (vector<Matrix> &poses) {
   vector<float> dist;
   dist.push_back(0);

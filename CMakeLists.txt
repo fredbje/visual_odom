@@ -46,9 +46,8 @@ set(sources_visual_odom
         src/feature.cpp
         src/utils.cpp
         src/visualOdometry.cpp
-        src/evaluate/evaluate_odometry.cpp
-        src/evaluate/matrix.cpp
-        src/matrixutils.h src/stereocamera.h)
+        src/loadFunctions.cpp
+        )
 
 
 # Create the main executable, and link libraries
