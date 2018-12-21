@@ -29,14 +29,25 @@ int main(int argc, char **argv)
         LOG(ERROR) << "Could not open settings file";
     }
 
-    std::string sequenceDirectory = fSettings["sequenceDir"];
-    std::string timestampsFile = fSettings["timestampsFile"];
-    std::string gtPosesFile = fSettings["gtPosesFile"];
-    std::string oxtsDirectory = fSettings["oxtsDir"];
-    std::string imu2VeloCalibrationFile = fSettings["imu2VeloCalibFile"];
-    std::string velo2CamCalibrationFile = fSettings["velo2CamCalibFile"];
-    std::string vocabularyFile = fSettings["vocabularyFile"];
-    std::string logSettingsFile = fSettings["logSettingsFile"];
+    if(fSettings["SequenceDirectory"].empty()
+        || fSettings["TimestampsFile"].empty()
+        || fSettings["GroundTruthFile"].empty()
+        || fSettings["OxtsDirectory"].empty()
+        || fSettings["Cam2ImuCalibrationFile"].empty()
+        || fSettings["VocabularyFile"].empty()
+        || fSettings["LogSettingsFile"].empty())
+    {
+        LOG(ERROR) << "Could not read settings file";
+        return 1;
+    }
+
+    std::string sequenceDirectory = fSettings["SequenceDirectory"];
+    std::string timestampsFile = fSettings["TimestampsFile"];
+    std::string gtPosesFile = fSettings["GroundTruthFile"];
+    std::string oxtsDirectory = fSettings["OxtsDirectory"];
+    std::string cam2ImuCalibrationFile = fSettings["Cam2ImuCalibrationFile"];
+    std::string vocabularyFile = fSettings["VocabularyFile"];
+    std::string logSettingsFile = fSettings["LogSettingsFile"];
 
     el::Loggers::configureFromGlobal(logSettingsFile.c_str());
 
@@ -55,7 +66,7 @@ int main(int argc, char **argv)
     }
 
     cv::Mat imu_T_cam;
-    if(!loadCam2ImuTransform(imu2VeloCalibrationFile, velo2CamCalibrationFile, imu_T_cam))
+    if(!loadCam2ImuTransform(cam2ImuCalibrationFile, imu_T_cam))
     {
         LOG(ERROR) << "Could not load imu_T_cam matrix";
         return 1;
@@ -64,7 +75,7 @@ int main(int argc, char **argv)
     // -----------------------------------------
     // Load images and configurations parameters
     // -----------------------------------------
-    bool displayGroundTruth = static_cast<int>(fSettings["displayGroundTruth"]) != 0;
+    bool displayGroundTruth = true;
     std::vector<cv::Mat> gtPoses;
     if(displayGroundTruth)
     {
@@ -76,21 +87,6 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-
-    StereoCamera stereoCamera(fSettings["Camera.fx"],
-            fSettings["Camera.fy"],
-            fSettings["Camera.cx"],
-            fSettings["Camera.cy"],
-            fSettings["Camera.bf"],
-            fSettings["Camera.width"],
-            fSettings["Camera.height"],
-            fSettings["Camera.k1"],
-            fSettings["Camera.k2"],
-            fSettings["Camera.p1"],
-            fSettings["Camera.p2"]);
-
-    LOG(INFO) << "P_left: " << std::endl << stereoCamera.projMatL();
-    LOG(INFO) << "P_right: " << std::endl << stereoCamera.projMatR();
 
     // -----------------------------------------
     // Initialize variables
@@ -134,7 +130,7 @@ int main(int argc, char **argv)
     // Run visual odometry
     // -----------------------------------------
     clock_t tic = clock();
-    VisualOdometryStereo vos(stereoCamera);
+    VisualOdometryStereo vos(fSettings);
     cv::Mat imageLeftCurr, imageRightCurr;
     for (int frame_id = init_frame_id; frame_id < 9000; frame_id++)
     {

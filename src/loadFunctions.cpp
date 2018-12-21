@@ -252,33 +252,28 @@ bool loadOxtsData(const std::string &strOxtsDir, std::vector<oxts> &vOxtsData)
     return true;
 }
 
-bool loadCam2ImuTransform(const std::string &strImu2VeloCalibFile, const std::string &strVelo2CamCalibFile, cv::Mat& imu_T_cam)
+bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Mat& imu_T_cam)
 {
-    if(!bfs::is_regular_file(strImu2VeloCalibFile))
+    if(!bfs::is_regular_file(cam2ImuCalibFile))
     {
-        LOG(ERROR) << strImu2VeloCalibFile << " is not a file.";
-        return false;
-    }
-    else if(!bfs::is_regular_file(strVelo2CamCalibFile))
-    {
-        LOG(ERROR) << strVelo2CamCalibFile << " is not a file.";
+        LOG(ERROR) << cam2ImuCalibFile << " is not a file.";
         return false;
     }
 
-    cv::Mat velo_T_imu(4, 4, CV_32F);
+    imu_T_cam = cv::Mat(4, 4, CV_32F);
     {
         std::ifstream f;
         std::string strLine;
-        f.open(strImu2VeloCalibFile.c_str(), std::ifstream::in);
+        f.open(cam2ImuCalibFile.c_str(), std::ifstream::in);
         if (!f.is_open())
         {
-            LOG(ERROR) << "Could not open " << strImu2VeloCalibFile;
+            LOG(ERROR) << "Could not open " << cam2ImuCalibFile;
             return false;
         }
 
         if (!std::getline(f, strLine))
         {
-            LOG(ERROR) << "Could not read from " << strImu2VeloCalibFile;
+            LOG(ERROR) << "Could not read from " << cam2ImuCalibFile;
             return false;
         }
 
@@ -286,43 +281,17 @@ bool loadCam2ImuTransform(const std::string &strImu2VeloCalibFile, const std::st
         float r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
         if (!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
         {
-            LOG(ERROR) << "Could not read stream from " << strImu2VeloCalibFile;
+            LOG(ERROR) << "Could not read stream from " << cam2ImuCalibFile;
             return false;
         }
 
-        velo_T_imu.at<float>(0, 0) = r11; velo_T_imu.at<float>(0, 1) = r12; velo_T_imu.at<float>(0, 2) = r13; velo_T_imu.at<float>(0, 3) = t1;
-        velo_T_imu.at<float>(1, 0) = r21; velo_T_imu.at<float>(1, 1) = r22; velo_T_imu.at<float>(1, 2) = r23; velo_T_imu.at<float>(1, 3) = t2;
-        velo_T_imu.at<float>(2, 0) = r31; velo_T_imu.at<float>(2, 1) = r32; velo_T_imu.at<float>(2, 2) = r33; velo_T_imu.at<float>(2, 3) = t3;
-        velo_T_imu.at<float>(3, 0) = 0.0; velo_T_imu.at<float>(3, 1) = 0.0; velo_T_imu.at<float>(3, 2) = 0.0; velo_T_imu.at<float>(3, 3) = 1.0;
+        imu_T_cam.at<float>(0, 0) = r11; imu_T_cam.at<float>(0, 1) = r12; imu_T_cam.at<float>(0, 2) = r13; imu_T_cam.at<float>(0, 3) = t1;
+        imu_T_cam.at<float>(1, 0) = r21; imu_T_cam.at<float>(1, 1) = r22; imu_T_cam.at<float>(1, 2) = r23; imu_T_cam.at<float>(1, 3) = t2;
+        imu_T_cam.at<float>(2, 0) = r31; imu_T_cam.at<float>(2, 1) = r32; imu_T_cam.at<float>(2, 2) = r33; imu_T_cam.at<float>(2, 3) = t3;
+        imu_T_cam.at<float>(3, 0) = 0.0; imu_T_cam.at<float>(3, 1) = 0.0; imu_T_cam.at<float>(3, 2) = 0.0; imu_T_cam.at<float>(3, 3) = 1.0;
     }
 
-    cv::Mat cam_T_velo(4, 4, CV_32F);
-    {
-        std::ifstream f;
-        std::string strLine;
-        f.open(strVelo2CamCalibFile.c_str(), std::ifstream::in);
-        if (!std::getline(f, strLine))
-        {
-            LOG(ERROR) << "Could not read from " << strVelo2CamCalibFile;
-            return false;
-        }
 
-        std::istringstream iss(strLine);
-        float r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
-        if (!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
-        {
-            LOG(ERROR) << "Could not read stream from " << strImu2VeloCalibFile;
-            return false;
-        }
-
-        cam_T_velo.at<float>(0, 0) = r11; cam_T_velo.at<float>(0, 1) = r12; cam_T_velo.at<float>(0, 2) = r13; cam_T_velo.at<float>(0, 3) = t1;
-        cam_T_velo.at<float>(1, 0) = r21; cam_T_velo.at<float>(1, 1) = r22; cam_T_velo.at<float>(1, 2) = r23; cam_T_velo.at<float>(1, 3) = t2;
-        cam_T_velo.at<float>(2, 0) = r31; cam_T_velo.at<float>(2, 1) = r32; cam_T_velo.at<float>(2, 2) = r33; cam_T_velo.at<float>(2, 3) = t3;
-        cam_T_velo.at<float>(3, 0) = 0.0; cam_T_velo.at<float>(3, 1) = 0.0; cam_T_velo.at<float>(3, 2) = 0.0; cam_T_velo.at<float>(3, 3) = 1.0;
-    }
-
-    cv::Mat cam_T_imu = cam_T_velo * velo_T_imu;
-    imu_T_cam = cam_T_imu.inv();
     LOG(INFO) << "Loaded camera to imu frame transformation.";
     return true;
 }

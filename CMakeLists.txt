@@ -43,7 +43,6 @@ include_directories(
 set(sources_visual_odom
         src/bucket.cpp
         src/easylogging++.cc
-        src/feature.cpp
         src/utils.cpp
         src/visualOdometry.cpp
         src/loadFunctions.cpp

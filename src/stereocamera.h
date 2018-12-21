@@ -33,7 +33,26 @@ public:
         {
             LOG(WARNING) << "Parameter bf from config should be negative";
         }
+
+        LOG(INFO) << "P_left: " << std::endl << projMatL_;
+        LOG(INFO) << "P_right: " << std::endl << projMatR_;
     }
+
+    explicit StereoCamera(const cv::FileStorage& fSettings)
+    : StereoCamera(fSettings["Camera.fx"],
+            fSettings["Camera.fy"],
+            fSettings["Camera.cx"],
+            fSettings["Camera.cy"],
+            fSettings["Camera.bf"],
+            fSettings["Camera.width"],
+            fSettings["Camera.height"],
+            fSettings["Camera.k1"],
+            fSettings["Camera.k2"],
+            fSettings["Camera.p1"],
+            fSettings["Camera.p2"])
+            {
+
+            }
 
     const float& fx() { return fx_; }
     const float& fy() { return fy_; }
@@ -50,13 +69,13 @@ public:
     const cv::Mat& distCoeffs() { return distCoeffs_; }
 
 private:
-    const float fx_;
-    const float fy_;
-    const float cx_;
-    const float cy_;
+    float fx_;
+    float fy_;
+    float cx_;
+    float cy_;
     float bf_;
-    const int width_;
-    const int height_;
+    int width_;
+    int height_;
 
     float k1_;
     float k2_;

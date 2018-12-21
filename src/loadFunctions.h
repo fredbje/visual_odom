@@ -13,6 +13,6 @@ bool loadImages(cv::Mat &imgLeft, cv::Mat &imgRight, const std::string &strLeftI
 bool loadTimeStamps(const std::string &strTimestampsFile, std::vector<double> &vTimestamps);
 bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPoses);
 bool loadOxtsData(const std::string &strOxtsDir, std::vector<oxts> &vOxtsData);
-bool loadCam2ImuTransform(const std::string &strImu2VeloCalibFile, const std::string &strVelo2CamCalibFile, cv::Mat& imu_T_cam);
+bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Mat& imu_T_cam);
 
 #endif //SFO_LOADFUNCTIONS_H

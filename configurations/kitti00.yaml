@@ -1,16 +1,12 @@
 %YAML:1.0
 
-sequenceDir: '/home/fbjerkas/datasets/kitti-gray/sequences/00'
-timestampsFile: '/home/fbjerkas/datasets/kitti-gray/sequences/00/times.txt'
-gtPosesFile: '/home/fbjerkas/datasets/kitti-poses/dataset/poses/00.txt'
-oxtsDir: '/home/fbjerkas/datasets/2011_10_03/2011_10_03_drive_0027_sync/oxts/data'
-imu2VeloCalibFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_imu_to_velo.txt'
-velo2CamCalibFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_velo_to_cam.txt'
-vocabularyFile: '/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt'
-logSettingsFile: '/home/fbjerkas/src/visual_odom/configurations/easylogging.conf'
-
-# interpreted as boolean. 0 false, else true
-displayGroundTruth: 1
+SequenceDirectory: '/home/fbjerkas/datasets/kitti-gray/sequences/00'
+TimestampsFile: '/home/fbjerkas/datasets/kitti-gray/sequences/00/times.txt'
+GroundTruthFile: '/home/fbjerkas/datasets/kitti-poses/dataset/poses/00.txt'
+OxtsDirectory: '/home/fbjerkas/datasets/2011_10_03/2011_10_03_drive_0027_sync/oxts/data'
+Cam2ImuCalibrationFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_cam_to_imu.txt'
+VocabularyFile: '/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt'
+LogSettingsFile: '/home/fbjerkas/src/visual_odom/configurations/easylogging.conf'
 
 # Camera configurations and distortion parameters (OpenCV).
 Camera.fx: 718.8560
@@ -30,5 +26,6 @@ Camera.width: 1241
 Camera.height: 376
 
 # Close/Far threshold. Baseline times.
-ThDepth: 35
+DepthThreshold: 35
+
 

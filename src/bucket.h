@@ -1,7 +1,7 @@
 #ifndef BUCKET_H
 #define BUCKET_H
 
-#include "feature.h"
+#include "featureset.h"
 
 class Bucket
 {
