@@ -124,7 +124,7 @@ bool loadTimeStamps(const std::string &strTimestampsFile, std::vector<double> &v
 }
 
 
-bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPoses)
+bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Matx44d> &vGtPoses)
 {
     if(!bfs::is_regular_file(bfs::path(strGtPosesFile)))
     {
@@ -155,17 +155,17 @@ bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Mat> &vGtPos
     while(std::getline(f, strLine))
     {
         std::istringstream iss(strLine);
-        float r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
+        double r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
         if(!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
         {
             break;
         }
 
-        cv::Mat tempPose = cv::Mat(4, 4, CV_32F);
-        tempPose.at<float>(0, 0) = r11; tempPose.at<float>(0, 1) = r12; tempPose.at<float>(0, 2) = r13; tempPose.at<float>(0, 3) = t1;
-        tempPose.at<float>(1, 0) = r21; tempPose.at<float>(1, 1) = r22; tempPose.at<float>(1, 2) = r23; tempPose.at<float>(1, 3) = t2;
-        tempPose.at<float>(2, 0) = r31; tempPose.at<float>(2, 1) = r32; tempPose.at<float>(2, 2) = r33; tempPose.at<float>(2, 3) = t3;
-        tempPose.at<float>(3, 0) = 0.0; tempPose.at<float>(3, 1) = 0.0; tempPose.at<float>(3, 2) = 0.0; tempPose.at<float>(3, 3) = 1.0;
+        cv::Matx44d tempPose;
+        tempPose(0, 0) = r11; tempPose(0, 1) = r12; tempPose(0, 2) = r13; tempPose(0, 3) = t1;
+        tempPose(1, 0) = r21; tempPose(1, 1) = r22; tempPose(1, 2) = r23; tempPose(1, 3) = t2;
+        tempPose(2, 0) = r31; tempPose(2, 1) = r32; tempPose(2, 2) = r33; tempPose(2, 3) = t3;
+        tempPose(3, 0) = 0.0; tempPose(3, 1) = 0.0; tempPose(3, 2) = 0.0; tempPose(3, 3) = 1.0;
         vGtPoses.push_back(tempPose);
     }
     LOG(INFO) << "Finished loading GT poses.";
@@ -252,7 +252,7 @@ bool loadOxtsData(const std::string &strOxtsDir, std::vector<oxts> &vOxtsData)
     return true;
 }
 
-bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Mat& imu_T_cam)
+bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Matx33d& imu_T_cam)
 {
     if(!bfs::is_regular_file(cam2ImuCalibFile))
     {
@@ -260,37 +260,33 @@ bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Mat& imu_T_ca
         return false;
     }
 
-    imu_T_cam = cv::Mat(4, 4, CV_32F);
+    std::ifstream f;
+    std::string strLine;
+    f.open(cam2ImuCalibFile.c_str(), std::ifstream::in);
+    if (!f.is_open())
     {
-        std::ifstream f;
-        std::string strLine;
-        f.open(cam2ImuCalibFile.c_str(), std::ifstream::in);
-        if (!f.is_open())
-        {
-            LOG(ERROR) << "Could not open " << cam2ImuCalibFile;
-            return false;
-        }
-
-        if (!std::getline(f, strLine))
-        {
-            LOG(ERROR) << "Could not read from " << cam2ImuCalibFile;
-            return false;
-        }
-
-        std::istringstream iss(strLine);
-        float r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
-        if (!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
-        {
-            LOG(ERROR) << "Could not read stream from " << cam2ImuCalibFile;
-            return false;
-        }
-
-        imu_T_cam.at<float>(0, 0) = r11; imu_T_cam.at<float>(0, 1) = r12; imu_T_cam.at<float>(0, 2) = r13; imu_T_cam.at<float>(0, 3) = t1;
-        imu_T_cam.at<float>(1, 0) = r21; imu_T_cam.at<float>(1, 1) = r22; imu_T_cam.at<float>(1, 2) = r23; imu_T_cam.at<float>(1, 3) = t2;
-        imu_T_cam.at<float>(2, 0) = r31; imu_T_cam.at<float>(2, 1) = r32; imu_T_cam.at<float>(2, 2) = r33; imu_T_cam.at<float>(2, 3) = t3;
-        imu_T_cam.at<float>(3, 0) = 0.0; imu_T_cam.at<float>(3, 1) = 0.0; imu_T_cam.at<float>(3, 2) = 0.0; imu_T_cam.at<float>(3, 3) = 1.0;
+        LOG(ERROR) << "Could not open " << cam2ImuCalibFile;
+        return false;
     }
 
+    if (!std::getline(f, strLine))
+    {
+        LOG(ERROR) << "Could not read from " << cam2ImuCalibFile;
+        return false;
+    }
+
+    std::istringstream iss(strLine);
+    double r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
+    if (!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
+    {
+        LOG(ERROR) << "Could not read stream from " << cam2ImuCalibFile;
+        return false;
+    }
+
+    imu_T_cam(0, 0) = r11; imu_T_cam(0, 1) = r12; imu_T_cam(0, 2) = r13; imu_T_cam(0, 3) = t1;
+    imu_T_cam(1, 0) = r21; imu_T_cam(1, 1) = r22; imu_T_cam(1, 2) = r23; imu_T_cam(1, 3) = t2;
+    imu_T_cam(2, 0) = r31; imu_T_cam(2, 1) = r32; imu_T_cam(2, 2) = r33; imu_T_cam(2, 3) = t3;
+    imu_T_cam(3, 0) = 0.0; imu_T_cam(3, 1) = 0.0; imu_T_cam(3, 2) = 0.0; imu_T_cam(3, 3) = 1.0;
 
     LOG(INFO) << "Loaded camera to imu frame transformation.";
     return true;

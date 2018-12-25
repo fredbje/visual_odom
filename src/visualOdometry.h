@@ -6,13 +6,15 @@
 #include "featureset.h"
 #include "stereocamera.h"
 
+typedef float FLOAT;
+
 class VisualOdometryStereo
 {
 public:
     explicit VisualOdometryStereo(cv::FileStorage& fSettings) : stereoCamera_(fSettings) {}
     ~VisualOdometryStereo() = default;
 
-    bool process(cv::Mat& rotation, cv::Mat& translation_stereo,
+    bool process(cv::Matx33d& rotation, cv::Vec3d& translation_stereo,
             cv::Mat& image_left_t1,
             cv::Mat& image_right_t1,
             cv::Mat& image_left_t0,
@@ -77,7 +79,6 @@ private:
     bool nonmaxSuppression_ = true;
 
     bool estimateRotation5Pt_ = true;
-
 
     // ------------------------------
     // Settings for circular matching

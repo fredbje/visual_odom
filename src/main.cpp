@@ -5,8 +5,8 @@
 #include "visualOdometry.h"
 #include "matrixutils.h"
 #include "stereocamera.h"
-#include "easylogging++.h"
 #include "loadFunctions.h"
+#include "easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
 
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cv::Mat imu_T_cam;
+    cv::Matx33d imu_T_cam;
     if(!loadCam2ImuTransform(cam2ImuCalibrationFile, imu_T_cam))
     {
         LOG(ERROR) << "Could not load imu_T_cam matrix";
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     // Load images and configurations parameters
     // -----------------------------------------
     bool displayGroundTruth = true;
-    std::vector<cv::Mat> gtPoses;
+    std::vector<cv::Matx44d> gtPoses;
     if(displayGroundTruth)
     {
         LOG(INFO) << "Display ground truth trajectory";
@@ -91,13 +91,13 @@ int main(int argc, char **argv)
     // -----------------------------------------
     // Initialize variables
     // -----------------------------------------
-    cv::Mat rotation = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat translation_stereo = cv::Mat::zeros(3, 1, CV_64F);
+    cv::Matx33d rotation = cv::Matx33d::eye();
+    cv::Vec3d translation_stereo = cv::Vec3d(0, 0, 0);
 
-    cv::Mat pose = cv::Mat::zeros(3, 1, CV_64F);
-    cv::Mat Rpose = cv::Mat::eye(3, 3, CV_64F);
+    cv::Matx31d translation = cv::Matx31d::zeros();
+    //cv::Mat Rpose = cv::Mat::eye(3, 3, CV_64F);
     
-    cv::Mat frame_pose = cv::Mat::eye(4, 4, CV_64F);
+    cv::Matx44d frame_pose = cv::Matx44d::eye();
 
     LOG(INFO) << "Frame_pose " << frame_pose;
 
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
                 points_left_t0_return,
                 current_features);
 
-        cv::Vec3f rotation_euler = rotationMatrixToEulerAngles(rotation);
+        cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation);
         LOG(DEBUG) << "rotation: " << rotation_euler;
         LOG(DEBUG) << "translation: " << translation_stereo.t();
 
@@ -165,20 +165,25 @@ int main(int argc, char **argv)
             LOG(WARNING) << "Too large rotation";
         }
 
+        /*
         Rpose =  frame_pose(cv::Range(0, 3), cv::Range(0, 3));
         cv::Vec3f Rpose_euler = rotationMatrixToEulerAngles(Rpose);
         LOG(DEBUG) << "Rpose_euler" << Rpose_euler;
+        */
 
-        pose = frame_pose.col(3).clone();
+        //translation = frame_pose.col(3).clone();
+        translation(0) = frame_pose(0, 3);
+        translation(1) = frame_pose(1, 3);
+        translation(2) = frame_pose(2, 3);
 
         clock_t toc = clock();
         fps = float(frame_id-init_frame_id)/(toc-tic)*CLOCKS_PER_SEC;
 
-        pose = -pose;
-        LOG(DEBUG) << "Pose" << pose.t();
+        translation = -translation;
+        LOG(DEBUG) << "Translation" << translation.t();
         LOG(DEBUG) << "FPS: " << fps;
 
-        display(frame_id, trajectoryPlot, pose, gtPoses, fps, displayGroundTruth);
+        display(frame_id, trajectoryPlot, translation, gtPoses, displayGroundTruth);
 
         // -----------------------------------------
         // Prepare image for next frame

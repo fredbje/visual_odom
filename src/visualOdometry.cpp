@@ -5,7 +5,6 @@
 #include "opencv2/video/tracking.hpp"
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudaoptflow.hpp>
-#include <opencv2/cudalegacy.hpp>
 #include "bucket.h"
 
 void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
@@ -128,11 +127,6 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& img_l_0, const cv::Ma
        cv::calcOpticalFlowPyrLK(img_l_1, img_l_0, points_l_1, points_l_0_return, status3, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
    }
 
-
-
-/*
-
-*/
     deleteUnmatchFeaturesCircle(points_l_0, points_r_0, points_r_1, points_l_1, points_l_0_return,
                                 status0, status1, status2, status3, current_features.ages);
 }
@@ -217,7 +211,7 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points,
     }
 }
 
-bool VisualOdometryStereo::process(cv::Mat& rotation, cv::Mat& translation_stereo,
+bool VisualOdometryStereo::process(cv::Matx33d& rotation, cv::Vec3d& translation_stereo,
         cv::Mat& imageLeftCurr,
         cv::Mat& imageRightCurr,
         cv::Mat& imageLeftPrev,
