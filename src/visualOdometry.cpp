@@ -7,7 +7,7 @@
 #include <opencv2/cudaoptflow.hpp>
 #include "bucket.h"
 
-void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
+void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point_<PointType>>& vec)
 {
     vec.resize(d_mat.cols);
     cv::Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
@@ -21,16 +21,16 @@ void download(const cv::cuda::GpuMat& d_mat, std::vector<uchar>& vec)
     d_mat.download(mat);
 }
 
-void VisualOdometryStereo::featureDetectionFast(const cv::Mat& image, std::vector<cv::Point2f>& points)
+void VisualOdometryStereo::featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points)
 {
     std::vector<cv::KeyPoint> keypoints;
     cv::FAST(image, keypoints, fastThreshold_, nonmaxSuppression_);
     cv::KeyPoint::convert(keypoints, points, std::vector<int>());
 }
 
-void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
-                                 std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3,
-                                 std::vector<cv::Point2f>& points0_return,
+void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point_<PointType>>& points0, std::vector<cv::Point_<PointType>>& points1,
+                                 std::vector<cv::Point_<PointType>>& points2, std::vector<cv::Point_<PointType>>& points3,
+                                 std::vector<cv::Point_<PointType>>& points0_return,
                                  std::vector<uchar>& status0, std::vector<uchar>& status1,
                                  std::vector<uchar>& status2, std::vector<uchar>& status3,
                                  std::vector<int>& ages)
@@ -45,11 +45,11 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>&
     for( unsigned int i = 0; i < status3.size(); i++)
     {
         assert( (i - indexCorrection) >= 0 );
-        cv::Point2f pt0 = points0.at(i- indexCorrection);
-        cv::Point2f pt1 = points1.at(i- indexCorrection);
-        cv::Point2f pt2 = points2.at(i- indexCorrection);
-        cv::Point2f pt3 = points3.at(i- indexCorrection);
-        //cv::Point2f pt0_r = points0_return.at(i- indexCorrection);
+        cv::Point_<PointType> pt0 = points0.at(i- indexCorrection);
+        cv::Point_<PointType> pt1 = points1.at(i- indexCorrection);
+        cv::Point_<PointType> pt2 = points2.at(i- indexCorrection);
+        cv::Point_<PointType> pt3 = points3.at(i- indexCorrection);
+        //cv::Point_<PointType> pt0_r = points0_return.at(i- indexCorrection);
 
         if((status3.at(i) == 0) || (pt3.x < 0) || (pt3.y < 0)
            || (status2.at(i) == 0) || (pt2.x < 0) || (pt2.y < 0)
@@ -77,10 +77,10 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>&
 
 void VisualOdometryStereo::circularMatching(const cv::Mat& img_l_0, const cv::Mat& img_r_0,
         const cv::Mat& img_l_1, const cv::Mat& img_r_1,
-        std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
-        std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
-        std::vector<cv::Point2f>& points_l_0_return,
-        FeatureSet& current_features)
+        std::vector<cv::Point_<PointType>>& points_l_0, std::vector<cv::Point_<PointType>>& points_r_0,
+        std::vector<cv::Point_<PointType>>& points_l_1, std::vector<cv::Point_<PointType>>& points_r_1,
+        std::vector<cv::Point_<PointType>>& points_l_0_return,
+        FeatureSet<PointType>& current_features)
 {
     //this function automatically gets rid of points for which tracking fails
 
@@ -132,7 +132,7 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& img_l_0, const cv::Ma
 }
 
 
-void VisualOdometryStereo::bucketingFeatures(int image_height, int image_width, FeatureSet& current_features, int bucket_size, int features_per_bucket){
+void VisualOdometryStereo::bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& current_features, int bucket_size, int features_per_bucket){
     // This function buckets features
     // image: only use for getting dimension of the image
     // bucket_size: bucket size in pixel is bucket_size*bucket_size
@@ -141,14 +141,14 @@ void VisualOdometryStereo::bucketingFeatures(int image_height, int image_width, 
     int buckets_nums_width = image_width/bucket_size;
     //int buckets_number = buckets_nums_height * buckets_nums_width;
 
-    std::vector<Bucket> Buckets;
+    std::vector<Bucket<PointType>> Buckets;
 
     // initialize all the buckets
     for (int buckets_idx_height = 0; buckets_idx_height <= buckets_nums_height; buckets_idx_height++)
     {
         for (int buckets_idx_width = 0; buckets_idx_width <= buckets_nums_width; buckets_idx_width++)
         {
-            Buckets.emplace_back(Bucket(features_per_bucket));
+            Buckets.emplace_back(Bucket<PointType>(features_per_bucket));
         }
     }
 
@@ -175,8 +175,8 @@ void VisualOdometryStereo::bucketingFeatures(int image_height, int image_width, 
     LOG(DEBUG) << "current features number after bucketing: " << current_features.size();
 }
 
-void VisualOdometryStereo::appendNewFeatures(cv::Mat& image, FeatureSet& current_features){
-    std::vector<cv::Point2f>  points_new;
+void VisualOdometryStereo::appendNewFeatures(cv::Mat& image, FeatureSet<PointType>& current_features){
+    std::vector<cv::Point_<PointType>>  points_new;
     featureDetectionFast(image, points_new);
     current_features.points.insert(current_features.points.end(), points_new.begin(), points_new.end());
     std::vector<int>  ages_new(points_new.size(), 0);
@@ -184,7 +184,7 @@ void VisualOdometryStereo::appendNewFeatures(cv::Mat& image, FeatureSet& current
 }
 
 
-void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point2f>& points, std::vector<cv::Point2f>& points_return, std::vector<bool>& status)
+void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& points_return, std::vector<bool>& status)
 {
     bool isValid;
     for ( unsigned int i = 0; i < points.size(); i++ )
@@ -195,7 +195,7 @@ void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point2f>& points, std
     }
 }
 
-void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points, const std::vector<bool>& status)
+void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point_<PointType>>& points, const std::vector<bool>& status)
 {
     int index = 0;
     for( const bool& s : status )
@@ -211,7 +211,7 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points,
     }
 }
 
-bool VisualOdometryStereo::process(cv::Matx33d& rotation, cv::Vec3d& translation_stereo,
+bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
         cv::Mat& imageLeftCurr,
         cv::Mat& imageRightCurr,
         cv::Mat& imageLeftPrev,
@@ -221,7 +221,7 @@ bool VisualOdometryStereo::process(cv::Matx33d& rotation, cv::Vec3d& translation
         std::vector<cv::Point2f>& points_left_t1,
         std::vector<cv::Point2f>& points_right_t1,
         std::vector<cv::Point2f>& points_left_t0_return,
-        FeatureSet& current_features)
+        FeatureSet<PointType>& current_features)
 {
     // ----------------------------
     // Feature detection using FAST
@@ -270,8 +270,7 @@ bool VisualOdometryStereo::process(cv::Matx33d& rotation, cv::Vec3d& translation
     //----------------------------------------------
 
     cv::solvePnPRansac( points3D_t0, points_left_t1, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_stereo,
-                        useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_,
-                        inliersIgnored_, flags_ );
+                        useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_, inliersIgnored_, flags_ );
 
     if(estimateRotation5Pt_)
     {

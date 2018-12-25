@@ -6,7 +6,10 @@
 #include "featureset.h"
 #include "stereocamera.h"
 
-typedef float FLOAT;
+typedef double PoseType;
+typedef float PointType;
+typedef float TimeType;
+typedef float CamType;
 
 class VisualOdometryStereo
 {
@@ -14,45 +17,45 @@ public:
     explicit VisualOdometryStereo(cv::FileStorage& fSettings) : stereoCamera_(fSettings) {}
     ~VisualOdometryStereo() = default;
 
-    bool process(cv::Matx33d& rotation, cv::Vec3d& translation_stereo,
+    bool process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
             cv::Mat& image_left_t1,
             cv::Mat& image_right_t1,
             cv::Mat& image_left_t0,
             cv::Mat& image_right_t0,
-            std::vector<cv::Point2f>& points_left_t0,
-            std::vector<cv::Point2f>& points_right_t0,
-            std::vector<cv::Point2f>& points_left_t1,
-            std::vector<cv::Point2f>& points_right_t1,
-            std::vector<cv::Point2f>& points_left_t0_return,
-            FeatureSet& current_features);
+            std::vector<cv::Point_<PointType>>& points_left_t0,
+            std::vector<cv::Point_<PointType>>& points_right_t0,
+            std::vector<cv::Point_<PointType>>& points_left_t1,
+            std::vector<cv::Point_<PointType>>& points_right_t1,
+            std::vector<cv::Point_<PointType>>& points_left_t0_return,
+            FeatureSet<PointType>& current_features);
 
-    void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point2f>& points);
+    void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points);
 
-    void deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
-                                     std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3,
-                                     std::vector<cv::Point2f>& points0_return,
+    void deleteUnmatchFeaturesCircle(std::vector<cv::Point_<PointType>>& points0, std::vector<cv::Point_<PointType>>& points1,
+                                     std::vector<cv::Point_<PointType>>& points2, std::vector<cv::Point_<PointType>>& points3,
+                                     std::vector<cv::Point_<PointType>>& points0_return,
                                      std::vector<uchar>& status0, std::vector<uchar>& status1,
                                      std::vector<uchar>& status2, std::vector<uchar>& status3,
                                      std::vector<int>& ages);
 
     void circularMatching(const cv::Mat& img_l_0, const cv::Mat& img_r_0,
             const cv::Mat& img_l_1, const cv::Mat& img_r_1,
-            std::vector<cv::Point2f>& points_l_0, std::vector<cv::Point2f>& points_r_0,
-            std::vector<cv::Point2f>& points_l_1, std::vector<cv::Point2f>& points_r_1,
-            std::vector<cv::Point2f>& points_l_0_return,
-            FeatureSet& current_features);
+            std::vector<cv::Point_<PointType>>& points_l_0, std::vector<cv::Point_<PointType>>& points_r_0,
+            std::vector<cv::Point_<PointType>>& points_l_1, std::vector<cv::Point_<PointType>>& points_r_1,
+            std::vector<cv::Point_<PointType>>& points_l_0_return,
+            FeatureSet<PointType>& current_features);
 
-    void bucketingFeatures(int image_height, int image_width, FeatureSet& current_features, int bucket_size, int features_per_bucket);
+    void bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& current_features, int bucket_size, int features_per_bucket);
 
-    void appendNewFeatures(cv::Mat& image, FeatureSet& current_features);
-
-private:
-    void removeInvalidPoints(std::vector<cv::Point2f>& points, const std::vector<bool>& status);
-    void checkValidMatch(std::vector<cv::Point2f>& points, std::vector<cv::Point2f>& points_return, std::vector<bool>& status);
+    void appendNewFeatures(cv::Mat& image, FeatureSet<PointType>& current_features);
 
 private:
-    StereoCamera stereoCamera_;
-    cv::Mat translationMonoIgnored_ = cv::Mat::zeros(3, 1, CV_64F);
+    void removeInvalidPoints(std::vector<cv::Point_<PointType>>& points, const std::vector<bool>& status);
+    void checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& points_return, std::vector<bool>& status);
+
+private:
+    StereoCamera<CamType> stereoCamera_;
+    cv::Matx<PoseType, 3, 1> translationMonoIgnored_ = cv::Matx<PoseType, 3, 1>::zeros();
 
     // ---------------------------
     // Settings for solvePnpRansac
@@ -63,7 +66,7 @@ private:
     float confidence_ = 0.95;          // RANSAC successful confidence.
     bool useExtrinsicGuess_ = true;
     int flags_ = cv::SOLVEPNP_P3P; // cv::SOLVEPNP_ITERATIVE;
-    cv::Mat rvec_ = cv::Mat::zeros(3, 1, CV_64FC1);
+    cv::Matx<PoseType, 3, 1> rvec_ = cv::Matx<PoseType, 3, 1>::zeros();
     cv::Mat inliersIgnored_;
 
     // -------------------------------

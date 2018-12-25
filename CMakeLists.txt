@@ -41,10 +41,8 @@ include_directories(
 # Main class files
 #####################################
 set(sources_visual_odom
-        src/bucket.cpp
         src/easylogging++.cc
         src/visualOdometry.cpp
-        src/loadFunctions.cpp
         )
 
 

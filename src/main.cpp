@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 
     el::Loggers::configureFromGlobal(logSettingsFile.c_str());
 
-    std::vector<double> timestamps;
+    std::vector<TimeType> timestamps;
     if(!loadTimeStamps(timestampsFile, timestamps))
     {
         LOG(ERROR) << "Could not load timestamps";
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cv::Matx33d imu_T_cam;
+    cv::Matx<PoseType, 4, 4> imu_T_cam;
     if(!loadCam2ImuTransform(cam2ImuCalibrationFile, imu_T_cam))
     {
         LOG(ERROR) << "Could not load imu_T_cam matrix";
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     // Load images and configurations parameters
     // -----------------------------------------
     bool displayGroundTruth = true;
-    std::vector<cv::Matx44d> gtPoses;
+    std::vector<cv::Matx<PoseType, 4, 4>> gtPoses;
     if(displayGroundTruth)
     {
         LOG(INFO) << "Display ground truth trajectory";
@@ -91,19 +91,19 @@ int main(int argc, char **argv)
     // -----------------------------------------
     // Initialize variables
     // -----------------------------------------
-    cv::Matx33d rotation = cv::Matx33d::eye();
-    cv::Vec3d translation_stereo = cv::Vec3d(0, 0, 0);
+    cv::Matx<PoseType, 3, 3> rotation = cv::Matx<PoseType, 3, 3>::eye();
+    cv::Matx<PoseType, 3, 1> translation_stereo = cv::Matx<PoseType, 3, 1>::zeros();
 
-    cv::Matx31d translation = cv::Matx31d::zeros();
+    cv::Matx<PoseType, 3, 1> translation = cv::Matx<PoseType, 3, 1>::zeros();
     //cv::Mat Rpose = cv::Mat::eye(3, 3, CV_64F);
     
-    cv::Matx44d frame_pose = cv::Matx44d::eye();
+    cv::Matx<PoseType, 4, 4> frame_pose = cv::Matx<PoseType, 4, 4>::eye();
 
     LOG(INFO) << "Frame_pose " << frame_pose;
 
     cv::Mat trajectoryPlot = cv::Mat::zeros(600, 1200, CV_8UC3);
 
-    FeatureSet current_features;
+    FeatureSet<PointType> current_features;
 
     int init_frame_id = 0;
 
