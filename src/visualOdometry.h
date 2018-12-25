@@ -18,16 +18,16 @@ public:
     ~VisualOdometryStereo() = default;
 
     bool process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
-            cv::Mat& image_left_t1,
-            cv::Mat& image_right_t1,
-            cv::Mat& image_left_t0,
-            cv::Mat& image_right_t0,
-            std::vector<cv::Point_<PointType>>& points_left_t0,
-            std::vector<cv::Point_<PointType>>& points_right_t0,
-            std::vector<cv::Point_<PointType>>& points_left_t1,
-            std::vector<cv::Point_<PointType>>& points_right_t1,
-            std::vector<cv::Point_<PointType>>& points_left_t0_return,
-            FeatureSet<PointType>& current_features);
+            cv::Mat& imageLeftCurr,
+            cv::Mat& imageRightCurr,
+            cv::Mat& imageLeftPrev,
+            cv::Mat& imageRightPrev,
+            std::vector<cv::Point_<PointType>>& pointsLeftPrev,
+            std::vector<cv::Point_<PointType>>& pointsRightPrev,
+            std::vector<cv::Point_<PointType>>& pointsLeftCurr,
+            std::vector<cv::Point_<PointType>>& pointsRightCurr,
+            std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
+            FeatureSet<PointType>& currentFeatures);
 
     void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points);
 
@@ -38,20 +38,20 @@ public:
                                      std::vector<uchar>& status2, std::vector<uchar>& status3,
                                      std::vector<int>& ages);
 
-    void circularMatching(const cv::Mat& img_l_0, const cv::Mat& img_r_0,
-            const cv::Mat& img_l_1, const cv::Mat& img_r_1,
-            std::vector<cv::Point_<PointType>>& points_l_0, std::vector<cv::Point_<PointType>>& points_r_0,
-            std::vector<cv::Point_<PointType>>& points_l_1, std::vector<cv::Point_<PointType>>& points_r_1,
-            std::vector<cv::Point_<PointType>>& points_l_0_return,
+    void circularMatching(const cv::Mat& imageLeftPrev, const cv::Mat& imageRightPrev,
+            const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
+            std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
+            std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
+            std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
             FeatureSet<PointType>& current_features);
 
-    void bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& current_features, int bucket_size, int features_per_bucket);
+    void bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket);
 
-    void appendNewFeatures(cv::Mat& image, FeatureSet<PointType>& current_features);
+    void appendNewFeatures(cv::Mat& image, FeatureSet<PointType>& currentFeatures);
 
 private:
     void removeInvalidPoints(std::vector<cv::Point_<PointType>>& points, const std::vector<bool>& status);
-    void checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& points_return, std::vector<bool>& status);
+    void checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& pointsReturn, std::vector<bool>& status);
 
 private:
     StereoCamera<CamType> stereoCamera_;
@@ -73,7 +73,7 @@ private:
     // Settings for bucketing features
     // -------------------------------
     int bucketSize_ = 50;
-    int featuresPerBucket_ = 4;
+    unsigned int featuresPerBucket_ = 4;
 
     // --------------------------
     // Settings for FAST detector

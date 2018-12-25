@@ -141,15 +141,15 @@ int main(int argc, char **argv)
         // ------------
         loadImages(imageLeftCurr, imageRightCurr, imageFileNamesLeft[frame_id + 1], imageFileNamesRight[frame_id + 1]);
 
-        std::vector<cv::Point2f>  points_left_t0, points_right_t0, points_left_t1, points_right_t1, points_left_t0_return;   //vectors to store the coordinates of the feature points
+        std::vector<cv::Point2f>  pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn;   //vectors to store the coordinates of the feature points
         vos.process(rotation, translation_stereo,
                 imageLeftCurr, imageRightCurr,
                 imageLeftPrev, imageRightPrev,
-                points_left_t0,
-                points_right_t0,
-                points_left_t1,
-                points_right_t1,
-                points_left_t0_return,
+                pointsLeftPrev,
+                pointsRightPrev,
+                pointsLeftCurr,
+                pointsRightCurr,
+                pointsLeftPrevReturn,
                 current_features);
 
         cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation);
@@ -202,20 +202,20 @@ int main(int argc, char **argv)
 
         cv::cvtColor(imageLeftCurr, vis, cv::COLOR_GRAY2BGR, 3);
 
-        for ( const auto& point_left_t0 : points_left_t0 )
+        for ( const auto& point_left_t0 : pointsLeftPrev )
         {
             circle(vis, cv::Point2f(point_left_t0.x, point_left_t0.y), radius, CV_RGB(0,255,0));
         }
 
-        for ( const auto& point_left_t1 : points_left_t1 )
+        for ( const auto& point_left_t1 : pointsLeftCurr )
         {
             circle(vis, cv::Point2f(point_left_t1.x, point_left_t1.y), radius, CV_RGB(255,0,0));
         }
 
-        assert(points_left_t0.size() == points_left_t1.size());
-        for ( unsigned int i = 0; i < points_left_t1.size(); i++ )
+        assert(pointsLeftPrev.size() == pointsLeftCurr.size());
+        for ( unsigned int i = 0; i < pointsLeftCurr.size(); i++ )
         {
-            cv::line(vis, points_left_t0[i], points_left_t1[i], CV_RGB(0,255,0));
+            cv::line(vis, pointsLeftPrev[i], pointsLeftCurr[i], CV_RGB(0,255,0));
         }
 
         imshow("vis ", vis );
