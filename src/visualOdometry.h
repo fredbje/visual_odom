@@ -20,13 +20,10 @@ public:
     bool process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
             cv::Mat& imageLeftCurr,
             cv::Mat& imageRightCurr,
-            cv::Mat& imageLeftPrev,
-            cv::Mat& imageRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftPrev,
             std::vector<cv::Point_<PointType>>& pointsRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftCurr,
             std::vector<cv::Point_<PointType>>& pointsRightCurr,
-            std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
             FeatureSet<PointType>& currentFeatures);
 
     void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points);
@@ -43,7 +40,7 @@ public:
             std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
             std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
-            FeatureSet<PointType>& current_features);
+            std::vector<int>& ages);
 
     void bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket);
 
@@ -55,6 +52,7 @@ private:
 
 private:
     StereoCamera<CamType> stereoCamera_;
+    cv::Mat imageLeftPrev_, imageRightPrev_;
     cv::Matx<PoseType, 3, 1> translationMonoIgnored_ = cv::Matx<PoseType, 3, 1>::zeros();
 
     // ---------------------------

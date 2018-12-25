@@ -132,7 +132,7 @@ int main(int argc, char **argv)
     clock_t tic = clock();
     VisualOdometryStereo vos(fSettings);
     cv::Mat imageLeftCurr, imageRightCurr;
-    for (int frame_id = init_frame_id; frame_id < 9000; frame_id++)
+    for (int frame_id = 0; frame_id < imageFileNamesLeft.size(); frame_id++) //int frame_id = init_frame_id; frame_id < 9000; frame_id++) {
     {
         LOG(DEBUG) << "frame_id " << frame_id;
 
@@ -141,86 +141,72 @@ int main(int argc, char **argv)
         // ------------
         loadImages(imageLeftCurr, imageRightCurr, imageFileNamesLeft[frame_id + 1], imageFileNamesRight[frame_id + 1]);
 
-        std::vector<cv::Point2f>  pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn;   //vectors to store the coordinates of the feature points
-        vos.process(rotation, translation_stereo,
-                imageLeftCurr, imageRightCurr,
-                imageLeftPrev, imageRightPrev,
-                pointsLeftPrev,
-                pointsRightPrev,
-                pointsLeftCurr,
-                pointsRightCurr,
-                pointsLeftPrevReturn,
-                current_features);
+        std::vector<cv::Point2f> pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr;   //vectors to store the coordinates of the feature points
+        if (vos.process(rotation, translation_stereo,
+                        imageLeftCurr, imageRightCurr,
+                        pointsLeftPrev,
+                        pointsRightPrev,
+                        pointsLeftCurr,
+                        pointsRightCurr,
+                        current_features)) {
 
-        cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation);
-        LOG(DEBUG) << "rotation: " << rotation_euler;
-        LOG(DEBUG) << "translation: " << translation_stereo.t();
+            cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation);
+            LOG(DEBUG) << "rotation: " << rotation_euler;
+            LOG(DEBUG) << "translation: " << translation_stereo.t();
 
-        if( abs(rotation_euler[1]) < 0.1 && abs(rotation_euler[0]) < 0.1 && abs(rotation_euler[2]) < 0.1 )
-        {
-            integrateOdometryStereo(frame_pose, rotation, translation_stereo);
+            if (abs(rotation_euler[1]) < 0.1 && abs(rotation_euler[0]) < 0.1 && abs(rotation_euler[2]) < 0.1) {
+                integrateOdometryStereo(frame_pose, rotation, translation_stereo);
+            } else {
+                LOG(WARNING) << "Too large rotation";
+            }
+
+            /*
+            Rpose =  frame_pose(cv::Range(0, 3), cv::Range(0, 3));
+            cv::Vec3f Rpose_euler = rotationMatrixToEulerAngles(Rpose);
+            LOG(DEBUG) << "Rpose_euler" << Rpose_euler;
+            */
+
+            //translation = frame_pose.col(3).clone();
+            translation(0) = frame_pose(0, 3);
+            translation(1) = frame_pose(1, 3);
+            translation(2) = frame_pose(2, 3);
+
+            clock_t toc = clock();
+            fps = float(frame_id - init_frame_id) / (toc - tic) * CLOCKS_PER_SEC;
+
+            translation = -translation;
+            LOG(DEBUG) << "Translation" << translation.t();
+            LOG(DEBUG) << "FPS: " << fps;
+
+            display(frame_id, trajectoryPlot, translation, gtPoses, displayGroundTruth);
+
+            // -----------------------------------------
+            // Display
+            // -----------------------------------------
+
+            int radius = 2;
+            // cv::Mat vis = image_left_t0.clone();
+
+            cv::Mat vis;
+
+            cv::cvtColor(imageLeftCurr, vis, cv::COLOR_GRAY2BGR, 3);
+
+            for (const auto &point_left_t0 : pointsLeftPrev) {
+                circle(vis, cv::Point2f(point_left_t0.x, point_left_t0.y), radius, CV_RGB(0, 255, 0));
+            }
+
+            for (const auto &point_left_t1 : pointsLeftCurr) {
+                circle(vis, cv::Point2f(point_left_t1.x, point_left_t1.y), radius, CV_RGB(255, 0, 0));
+            }
+
+            assert(pointsLeftPrev.size() == pointsLeftCurr.size());
+            for (unsigned int i = 0; i < pointsLeftCurr.size(); i++) {
+                cv::line(vis, pointsLeftPrev[i], pointsLeftCurr[i], CV_RGB(0, 255, 0));
+            }
+
+            imshow("vis ", vis);
         }
-        else
-        {
-            LOG(WARNING) << "Too large rotation";
-        }
-
-        /*
-        Rpose =  frame_pose(cv::Range(0, 3), cv::Range(0, 3));
-        cv::Vec3f Rpose_euler = rotationMatrixToEulerAngles(Rpose);
-        LOG(DEBUG) << "Rpose_euler" << Rpose_euler;
-        */
-
-        //translation = frame_pose.col(3).clone();
-        translation(0) = frame_pose(0, 3);
-        translation(1) = frame_pose(1, 3);
-        translation(2) = frame_pose(2, 3);
-
-        clock_t toc = clock();
-        fps = float(frame_id-init_frame_id)/(toc-tic)*CLOCKS_PER_SEC;
-
-        translation = -translation;
-        LOG(DEBUG) << "Translation" << translation.t();
-        LOG(DEBUG) << "FPS: " << fps;
-
-        display(frame_id, trajectoryPlot, translation, gtPoses, displayGroundTruth);
-
-        // -----------------------------------------
-        // Prepare image for next frame
-        // -----------------------------------------
-        imageLeftPrev = imageLeftCurr;
-        imageRightPrev = imageRightCurr;
-
-        // -----------------------------------------
-        // Display
-        // -----------------------------------------
-
-        int radius = 2;
-        // cv::Mat vis = image_left_t0.clone();
-
-        cv::Mat vis;
-
-        cv::cvtColor(imageLeftCurr, vis, cv::COLOR_GRAY2BGR, 3);
-
-        for ( const auto& point_left_t0 : pointsLeftPrev )
-        {
-            circle(vis, cv::Point2f(point_left_t0.x, point_left_t0.y), radius, CV_RGB(0,255,0));
-        }
-
-        for ( const auto& point_left_t1 : pointsLeftCurr )
-        {
-            circle(vis, cv::Point2f(point_left_t1.x, point_left_t1.y), radius, CV_RGB(255,0,0));
-        }
-
-        assert(pointsLeftPrev.size() == pointsLeftCurr.size());
-        for ( unsigned int i = 0; i < pointsLeftCurr.size(); i++ )
-        {
-            cv::line(vis, pointsLeftPrev[i], pointsLeftCurr[i], CV_RGB(0,255,0));
-        }
-
-        imshow("vis ", vis );
     }
-
     return 0;
 }
 

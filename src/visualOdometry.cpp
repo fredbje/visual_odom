@@ -80,7 +80,7 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
         std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
         std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
         std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
-        FeatureSet<PointType>& currentFeatures)
+        std::vector<int>& ages)
 {
     //this function automatically gets rid of points for which tracking fails
 
@@ -100,7 +100,6 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
        cv::cuda::GpuMat d_pointsLeftPrevReturn(pointsLeftPrevReturn);
 
        cv::cuda::GpuMat d_status0, d_status1, d_status2, d_status3;
-
        cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(winSize_, maxLevel_, opticalFlowIters_);
        d_pyrLK_sparse->calc(d_imageLeftPrev,  d_imageRightPrev, d_pointsLeftPrev,  d_pointsRightPrev,      d_status0);
        d_pyrLK_sparse->calc(d_imageRightPrev, d_imageRightCurr, d_pointsRightPrev, d_pointsRightCurr,      d_status1);
@@ -128,7 +127,7 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
    }
 
     deleteUnmatchFeaturesCircle(pointsLeftPrev, pointsRightPrev, pointsRightCurr, pointsLeftCurr, pointsLeftPrevReturn,
-                                status0, status1, status2, status3, currentFeatures.ages);
+                                status0, status1, status2, status3, ages);
 }
 
 
@@ -183,7 +182,6 @@ void VisualOdometryStereo::appendNewFeatures(cv::Mat& image, FeatureSet<PointTyp
     currentFeatures.ages.insert(currentFeatures.ages.end(), ages_new.begin(), ages_new.end());
 }
 
-
 void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& points_return, std::vector<bool>& status)
 {
     bool isValid;
@@ -214,15 +212,21 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point_<PointType>
 bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
         cv::Mat& imageLeftCurr,
         cv::Mat& imageRightCurr,
-        cv::Mat& imageLeftPrev,
-        cv::Mat& imageRightPrev,
         std::vector<cv::Point_<PointType>>& pointsLeftPrev,
         std::vector<cv::Point_<PointType>>& pointsRightPrev,
         std::vector<cv::Point_<PointType>>& pointsLeftCurr,
         std::vector<cv::Point_<PointType>>& pointsRightCurr,
-        std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
         FeatureSet<PointType>& currentFeatures)
 {
+
+    if(imageLeftPrev_.empty())
+    {
+        assert(imageRightPrev_.empty());
+        imageLeftPrev_ = imageLeftCurr;
+        imageRightPrev_ = imageRightCurr;
+        return false;
+    }
+
     // ----------------------------
     // Feature detection using FAST
     // ----------------------------
@@ -233,7 +237,7 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
         // current_features.ages = std::vector<int>(current_features.points.size(), 0);
 
         // append new features with old features
-        appendNewFeatures(imageLeftPrev, currentFeatures);
+        appendNewFeatures(imageLeftPrev_, currentFeatures);
 
         LOG(DEBUG) << "Current feature set size: " << currentFeatures.points.size();
     }
@@ -245,12 +249,14 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
     bucketingFeatures(stereoCamera_.height(), stereoCamera_.width(), currentFeatures, bucketSize_, featuresPerBucket_);
 
     pointsLeftPrev = currentFeatures.points;
-    circularMatching(imageLeftPrev, imageRightPrev, imageLeftCurr, imageRightCurr,
-                     pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn, currentFeatures);
+    std::vector<cv::Point_<PointType>> pointsLeftPrevReturn;
+    circularMatching(imageLeftPrev_, imageRightPrev_, imageLeftCurr, imageRightCurr,
+                     pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn, currentFeatures.ages);
 
     std::vector<bool> status;
     checkValidMatch(pointsLeftPrev, pointsLeftPrevReturn, status);
 
+    // TODO Launch threads here
     removeInvalidPoints(pointsLeftPrev, status);
     removeInvalidPoints(pointsLeftPrevReturn, status);
     removeInvalidPoints(pointsLeftCurr, status);
@@ -287,6 +293,11 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
         rotation = rotation.t();
     }
 
+    // -----------------------------------------
+    // Prepare image for next frame
+    // -----------------------------------------
+    imageLeftPrev_ = imageLeftCurr;
+    imageRightPrev_ = imageRightCurr;
     return true;
 }
 
