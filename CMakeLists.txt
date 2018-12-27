@@ -6,9 +6,9 @@ include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 elseif(COMPILER_SUPPORTS_CXX0X)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pthread")
 else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
@@ -27,6 +27,7 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED filesystem)
 find_package(OpenCV REQUIRED)
+find_package(Pangolin REQUIRED)
 
 # Include our header files
 include_directories(
@@ -35,6 +36,7 @@ include_directories(
         ${EIGEN3_INCLUDE_DIR}
         ${Boost_INCLUDE_DIRS} # For Boost::Filesystem
         ${OpenCV_INCLUDE_DIRS}
+        ${Pangolin_INCLUDE_DIR}
 )
 
 #####################################
@@ -43,6 +45,7 @@ include_directories(
 set(sources_visual_odom
         src/easylogging++.cc
         src/visualOdometry.cpp
+        src/mapDrawer.cpp
         )
 
 
@@ -56,4 +59,5 @@ target_link_libraries(run
         ${EIGEN3_LIBRARIES}
         ${Boost_LIBRARIES}
         ${OpenCV_LIBRARIES}
+        ${Pangolin_LIBRARY}
         )

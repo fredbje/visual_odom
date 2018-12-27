@@ -6,9 +6,12 @@
 #include "matrixutils.h"
 #include "stereocamera.h"
 #include "loadFunctions.h"
+#include "mapDrawer.h"
+#include <thread>
 #include "easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
+
 
 int main(int argc, char **argv)
 {
@@ -95,13 +98,12 @@ int main(int argc, char **argv)
     cv::Matx<PoseType, 3, 1> translation_stereo = cv::Matx<PoseType, 3, 1>::zeros();
 
     cv::Matx<PoseType, 3, 1> translation = cv::Matx<PoseType, 3, 1>::zeros();
-    //cv::Mat Rpose = cv::Mat::eye(3, 3, CV_64F);
-    
+
     cv::Matx<PoseType, 4, 4> frame_pose = cv::Matx<PoseType, 4, 4>::eye();
 
     LOG(INFO) << "Frame_pose " << frame_pose;
 
-    cv::Mat trajectoryPlot = cv::Mat::zeros(600, 1200, CV_8UC3);
+    //cv::Mat trajectoryPlot = cv::Mat::zeros(600, 1200, CV_8UC3);
 
     FeatureSet<PointType> current_features;
 
@@ -117,31 +119,33 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cv::Mat imageLeftPrev, imageRightPrev;
-    if(!loadImages(imageLeftPrev, imageRightPrev, imageFileNamesLeft[init_frame_id], imageFileNamesRight[init_frame_id]))
-    {
-        LOG(ERROR) << "Could not load images";
-        return 1;
-    }
-
-    float fps;
-
     // -----------------------------------------
     // Run visual odometry
     // -----------------------------------------
+
+    std::vector<cv::Matx<PoseType, 4, 4>> poses;
+    poses.push_back(frame_pose);
+
+    auto mapDrawer = new MapDrawer(gtPoses);
+    std::thread mapDrawerThread(&MapDrawer::run, mapDrawer);
+    mapDrawer->updatePoses(poses);
+
+    float fps;
     clock_t tic = clock();
     VisualOdometryStereo vos(fSettings);
-    cv::Mat imageLeftCurr, imageRightCurr;
-    for (int frame_id = 0; frame_id < imageFileNamesLeft.size(); frame_id++) //int frame_id = init_frame_id; frame_id < 9000; frame_id++) {
+    cv::Mat imageLeftCurr, imageRightCurr, vis;
+    int pointRadius = 2;
+
+    for (unsigned int frame_id = 0; frame_id < imageFileNamesLeft.size(); frame_id++) //int frame_id = init_frame_id; frame_id < 9000; frame_id++) {
     {
         LOG(DEBUG) << "frame_id " << frame_id;
 
         // ------------
         // Load images
         // ------------
-        loadImages(imageLeftCurr, imageRightCurr, imageFileNamesLeft[frame_id + 1], imageFileNamesRight[frame_id + 1]);
+        loadImages(imageLeftCurr, imageRightCurr, imageFileNamesLeft[frame_id], imageFileNamesRight[frame_id]);
 
-        std::vector<cv::Point2f> pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr;   //vectors to store the coordinates of the feature points
+        std::vector< cv::Point_<PointType> > pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr;   //vectors to store the coordinates of the feature points
         if (vos.process(rotation, translation_stereo,
                         imageLeftCurr, imageRightCurr,
                         pointsLeftPrev,
@@ -159,14 +163,9 @@ int main(int argc, char **argv)
             } else {
                 LOG(WARNING) << "Too large rotation";
             }
+            poses.emplace_back(frame_pose);
+            mapDrawer->updatePoses(poses);
 
-            /*
-            Rpose =  frame_pose(cv::Range(0, 3), cv::Range(0, 3));
-            cv::Vec3f Rpose_euler = rotationMatrixToEulerAngles(Rpose);
-            LOG(DEBUG) << "Rpose_euler" << Rpose_euler;
-            */
-
-            //translation = frame_pose.col(3).clone();
             translation(0) = frame_pose(0, 3);
             translation(1) = frame_pose(1, 3);
             translation(2) = frame_pose(2, 3);
@@ -178,35 +177,43 @@ int main(int argc, char **argv)
             LOG(DEBUG) << "Translation" << translation.t();
             LOG(DEBUG) << "FPS: " << fps;
 
+            /*
             display(frame_id, trajectoryPlot, translation, gtPoses, displayGroundTruth);
+            */
 
             // -----------------------------------------
             // Display
             // -----------------------------------------
-
-            int radius = 2;
-            // cv::Mat vis = image_left_t0.clone();
-
-            cv::Mat vis;
-
             cv::cvtColor(imageLeftCurr, vis, cv::COLOR_GRAY2BGR, 3);
 
-            for (const auto &point_left_t0 : pointsLeftPrev) {
-                circle(vis, cv::Point2f(point_left_t0.x, point_left_t0.y), radius, CV_RGB(0, 255, 0));
-            }
-
-            for (const auto &point_left_t1 : pointsLeftCurr) {
-                circle(vis, cv::Point2f(point_left_t1.x, point_left_t1.y), radius, CV_RGB(255, 0, 0));
-            }
-
             assert(pointsLeftPrev.size() == pointsLeftCurr.size());
-            for (unsigned int i = 0; i < pointsLeftCurr.size(); i++) {
+            for(unsigned int i = 0; i < pointsLeftPrev.size(); i++)
+            {
+                circle(vis, cv::Point2f(pointsLeftPrev[i].x, pointsLeftPrev[i].y), pointRadius, CV_RGB(0, 255, 0));
+                circle(vis, cv::Point2f(pointsLeftCurr[i].x, pointsLeftCurr[i].y), pointRadius, CV_RGB(255, 0, 0));
                 cv::line(vis, pointsLeftPrev[i], pointsLeftCurr[i], CV_RGB(0, 255, 0));
             }
 
-            imshow("vis ", vis);
+            cv::imshow("vis ", vis);
+            cv::waitKey(1);
         }
     }
+    delete mapDrawer;
+
+    // -----------------------------------------
+    // Write trajectory to file
+    // -----------------------------------------
+    /*
+    std::ofstream fout("/home/fbjerkas/src/rpg_trajectory_evaluation/results/kitti/00/stamped_groundtruth.txt", std::ofstream::out);
+    fout << "# time x y z qx qy qz qw" << std::endl;
+    for(unsigned int i = 0; i < poses.size(); i++)
+    {
+
+    }
+
+    std::ofstream fout("/home/fbjerkas/src/rpg_trajectory_evaluation/results/kitti/00/stamped_traj_estimate.txt", std::ofstream::out);
+    */
+
     return 0;
 }
 

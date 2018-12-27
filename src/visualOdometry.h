@@ -35,8 +35,7 @@ public:
                                      std::vector<uchar>& status2, std::vector<uchar>& status3,
                                      std::vector<int>& ages);
 
-    void circularMatching(const cv::Mat& imageLeftPrev, const cv::Mat& imageRightPrev,
-            const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
+    void circularMatching(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
             std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
             std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,

@@ -5,6 +5,7 @@
 #include "opencv2/video/tracking.hpp"
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudaoptflow.hpp>
+#include <thread>
 #include "bucket.h"
 
 void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point_<PointType>>& vec)
@@ -75,8 +76,7 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point_<Po
     }
 }
 
-void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const cv::Mat& imageRightPrev,
-        const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
+void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
         std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
         std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
         std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
@@ -88,8 +88,8 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
 
    if(cudaCircularMatching_)
    {
-       cv::cuda::GpuMat d_imageLeftPrev(imageLeftPrev);
-       cv::cuda::GpuMat d_imageRightPrev(imageRightPrev);
+       cv::cuda::GpuMat d_imageLeftPrev(imageLeftPrev_);
+       cv::cuda::GpuMat d_imageRightPrev(imageRightPrev_);
        cv::cuda::GpuMat d_imageLeftCurr(imageLeftCurr);
        cv::cuda::GpuMat d_imageRightCurr(imageRightCurr);
 
@@ -120,10 +120,10 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
    {
        std::vector<float> err;
 
-       cv::calcOpticalFlowPyrLK(imageLeftPrev,  imageRightPrev, pointsLeftPrev,  pointsRightPrev,      status0, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
-       cv::calcOpticalFlowPyrLK(imageRightPrev, imageRightCurr, pointsRightPrev, pointsRightCurr,      status1, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(imageLeftPrev_,  imageRightPrev_, pointsLeftPrev,  pointsRightPrev,      status0, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(imageRightPrev_, imageRightCurr, pointsRightPrev, pointsRightCurr,      status1, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
        cv::calcOpticalFlowPyrLK(imageRightCurr, imageLeftCurr,  pointsRightCurr, pointsLeftCurr,       status2, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
-       cv::calcOpticalFlowPyrLK(imageLeftCurr,  imageLeftPrev,  pointsLeftCurr,  pointsLeftPrevReturn, status3, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
+       cv::calcOpticalFlowPyrLK(imageLeftCurr,  imageLeftPrev_,  pointsLeftCurr,  pointsLeftPrevReturn, status3, err, winSize_, maxLevel_, termcrit_, opticalFlowFlags_, minEigThreshold_);
    }
 
     deleteUnmatchFeaturesCircle(pointsLeftPrev, pointsRightPrev, pointsRightCurr, pointsLeftCurr, pointsLeftPrevReturn,
@@ -131,44 +131,44 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftPrev, const 
 }
 
 
-void VisualOdometryStereo::bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket){
+void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket){
     // This function buckets features
     // image: only use for getting dimension of the image
     // bucket_size: bucket size in pixel is bucket_size*bucket_size
     // features_per_bucket: number of selected features per bucket
-    int buckets_nums_height = image_height/bucketSize;
-    int buckets_nums_width = image_width/bucketSize;
+    int numBucketsHeight = imageHeight / bucketSize;
+    int numBucketsWidth  = imageWidth / bucketSize;
     //int buckets_number = buckets_nums_height * buckets_nums_width;
 
     std::vector<Bucket<PointType>> Buckets;
 
     // initialize all the buckets
-    for (int buckets_idx_height = 0; buckets_idx_height <= buckets_nums_height; buckets_idx_height++)
+    for (int bucketIdxHeight = 0; bucketIdxHeight <= numBucketsHeight; bucketIdxHeight++)
     {
-        for (int buckets_idx_width = 0; buckets_idx_width <= buckets_nums_width; buckets_idx_width++)
+        for (int bucketIdxWidth = 0; bucketIdxWidth <= numBucketsWidth; bucketIdxWidth++)
         {
             Buckets.emplace_back(Bucket<PointType>(featuresPerBucket));
         }
     }
 
     // bucket all current features into buckets by their location
-    int buckets_nums_height_idx, buckets_nums_width_idx, buckets_idx;
+    int buckets_nums_height_idx, buckets_nums_width_idx, bucketIdx;
     for( unsigned int i = 0; i < currentFeatures.points.size(); ++i )
     {
         buckets_nums_height_idx = static_cast<int>(currentFeatures.points[i].y/bucketSize);
         buckets_nums_width_idx = static_cast<int>(currentFeatures.points[i].x/bucketSize);
-        buckets_idx = buckets_nums_height_idx*buckets_nums_width + buckets_nums_width_idx;
-        Buckets[buckets_idx].add_feature(currentFeatures.points[i], currentFeatures.ages[i]);
+        bucketIdx = buckets_nums_height_idx*numBucketsWidth + buckets_nums_width_idx;
+        Buckets[bucketIdx].add_feature(currentFeatures.points[i], currentFeatures.ages[i]);
     }
 
     // get features back from buckets
     currentFeatures.clear();
-    for (int buckets_idx_height = 0; buckets_idx_height <= buckets_nums_height; buckets_idx_height++)
+    for (int bucketIdxHeight = 0; bucketIdxHeight <= numBucketsHeight; bucketIdxHeight++)
     {
-        for (int buckets_idx_width = 0; buckets_idx_width <= buckets_nums_width; buckets_idx_width++)
+        for (int bucketIdxWidth = 0; bucketIdxWidth <= numBucketsWidth; bucketIdxWidth++)
         {
-            buckets_idx = buckets_idx_height*buckets_nums_width + buckets_idx_width;
-            Buckets[buckets_idx].get_features(currentFeatures);
+            bucketIdx = bucketIdxHeight*numBucketsWidth + bucketIdxWidth;
+            Buckets[bucketIdx].get_features(currentFeatures);
         }
     }
     LOG(DEBUG) << "current features number after bucketing: " << currentFeatures.size();
@@ -209,7 +209,7 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point_<PointType>
     }
 }
 
-bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
+bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translationStereo,
         cv::Mat& imageLeftCurr,
         cv::Mat& imageRightCurr,
         std::vector<cv::Point_<PointType>>& pointsLeftPrev,
@@ -250,33 +250,35 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
 
     pointsLeftPrev = currentFeatures.points;
     std::vector<cv::Point_<PointType>> pointsLeftPrevReturn;
-    circularMatching(imageLeftPrev_, imageRightPrev_, imageLeftCurr, imageRightCurr,
-                     pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn, currentFeatures.ages);
+    circularMatching(imageLeftCurr, imageRightCurr, pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn, currentFeatures.ages);
 
     std::vector<bool> status;
     checkValidMatch(pointsLeftPrev, pointsLeftPrevReturn, status);
 
-    // TODO Launch threads here
-    removeInvalidPoints(pointsLeftPrev, status);
-    removeInvalidPoints(pointsLeftPrevReturn, status);
-    removeInvalidPoints(pointsLeftCurr, status);
+    std::thread t1(&VisualOdometryStereo::removeInvalidPoints, this, std::ref(pointsLeftPrev),       std::cref(status));
+    std::thread t2(&VisualOdometryStereo::removeInvalidPoints, this, std::ref(pointsLeftPrevReturn), std::cref(status));
+    std::thread t3(&VisualOdometryStereo::removeInvalidPoints, this, std::ref(pointsLeftCurr),       std::cref(status));
     removeInvalidPoints(pointsRightPrev, status);
+    t1.join();
+    t2.join();
+    t3.join();
 
     currentFeatures.points = pointsLeftCurr;
 
     // ---------------------
     // Triangulate 3D Points
     // ---------------------
-    cv::Mat points4D_t0, points3D_t0;
-    cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), pointsLeftPrev, pointsRightPrev, points4D_t0 );
-    cv::convertPointsFromHomogeneous(points4D_t0.t(), points3D_t0);
+    cv::Mat points4DPrev, points3DPrev;
+    cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), pointsLeftPrev, pointsRightPrev, points4DPrev );
+    cv::convertPointsFromHomogeneous(points4DPrev.t(), points3DPrev);
 
     // ---------------------------------------------
     // Rotation and translation estimation using PNP
     //----------------------------------------------
-
-    cv::solvePnPRansac( points3D_t0, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_stereo,
+    // This function outputs {t}_T_{t-1}, but we want {t-1}_T_{t}
+    cv::solvePnPRansac( points3DPrev, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translationStereo,
                         useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_, inliersIgnored_, flags_ );
+    translationStereo = - translationStereo;
 
     if(estimateRotation5Pt_)
     {
