@@ -136,7 +136,7 @@ int main(int argc, char **argv)
     cv::Mat imageLeftCurr, imageRightCurr, vis;
     int pointRadius = 2;
 
-    for (unsigned int frame_id = 0; frame_id < imageFileNamesLeft.size(); frame_id++) //int frame_id = init_frame_id; frame_id < 9000; frame_id++) {
+    for (unsigned int frame_id = 0; frame_id < 500/*imageFileNamesLeft.size()*/; frame_id++) //int frame_id = init_frame_id; frame_id < 9000; frame_id++) {
     {
         LOG(DEBUG) << "frame_id " << frame_id;
 
@@ -198,21 +198,42 @@ int main(int argc, char **argv)
             cv::waitKey(1);
         }
     }
+    mapDrawer->requestFinish();
+    mapDrawerThread.join();
     delete mapDrawer;
 
     // -----------------------------------------
     // Write trajectory to file
     // -----------------------------------------
-    /*
+
     std::ofstream fout("/home/fbjerkas/src/rpg_trajectory_evaluation/results/kitti/00/stamped_groundtruth.txt", std::ofstream::out);
+    fout << "# time x y z qx qy qz qw" << std::endl;
+    for(unsigned int i = 0; i < gtPoses.size(); i++)
+    {
+        cv::Matx<PoseType, 4, 4> T = gtPoses[i];
+        PoseType x = T(0, 3);
+        PoseType y = T(1, 3);
+        PoseType z = T(2, 3);
+        cv::Matx<PoseType, 3, 3> R(T(0, 0), T(0, 1), T(0, 2), T(1, 0), T(1, 1), T(1, 2), T(2, 0), T(2, 1), T(2, 2));
+        cv::Matx<PoseType, 4, 1> q = rotMat2Quat(R);
+        fout << timestamps[i] << " " << x << " " << y << " " << z << " " << q(1) << " " << q(2) << " " << q(3) << " " << q(0) << std::endl;
+    }
+    fout.close();
+
+    fout.open("/home/fbjerkas/src/rpg_trajectory_evaluation/results/kitti/00/stamped_traj_estimate.txt", std::ofstream::out);
     fout << "# time x y z qx qy qz qw" << std::endl;
     for(unsigned int i = 0; i < poses.size(); i++)
     {
-
+        cv::Matx<PoseType, 4, 4> T = poses[i];
+        PoseType x = T(0, 3);
+        PoseType y = T(1, 3);
+        PoseType z = T(2, 3);
+        cv::Matx<PoseType, 3, 3> R(T(0, 0), T(0, 1), T(0, 2), T(1, 0), T(1, 1), T(1, 2), T(2, 0), T(2, 1), T(2, 2));
+        cv::Matx<PoseType, 4, 1> q = rotMat2Quat(R);
+        fout << timestamps[i] << " " << x << " " << y << " " << z << " " << q(1) << " " << q(2) << " " << q(3) << " " << q(0) << std::endl;
     }
+    fout.close();
 
-    std::ofstream fout("/home/fbjerkas/src/rpg_trajectory_evaluation/results/kitti/00/stamped_traj_estimate.txt", std::ofstream::out);
-    */
 
     return 0;
 }

@@ -120,11 +120,11 @@ inline cv::Matx<T, 3, 3> rotMatZ(const T& angle)
     return R;
 }
 
-
-inline cv::Vec4d rotMat2Quat(const cv::Matx33d& R)
+template <typename T>
+inline cv::Matx<T, 4, 1> rotMat2Quat(const cv::Matx<T, 3, 3>& R)
 {
     // Returned quaternion is 4x1 (qw, qx, qy, qz)^T.
-    cv::Vec4d q;
+    cv::Matx<T, 4, 1> q;
     q(0) = sqrt(1.0 + R(0, 0) + R(1, 1) + R(2, 2)) / 2.0;
     q(1) = (R(2, 1) - R(1, 2)) / (4.0 * q(0));
     q(2) = (R(0, 2) - R(2, 0)) / (4.0 * q(0));
