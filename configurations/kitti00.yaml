@@ -1,13 +1,5 @@
 %YAML:1.0
 
-SequenceDirectory: '/home/fbjerkas/datasets/kitti-gray/sequences/00'
-TimestampsFile: '/home/fbjerkas/datasets/kitti-gray/sequences/00/times.txt'
-GroundTruthFile: '/home/fbjerkas/datasets/kitti-poses/dataset/poses/00.txt'
-OxtsDirectory: '/home/fbjerkas/datasets/2011_10_03/2011_10_03_drive_0027_sync/oxts/data'
-Cam2ImuCalibrationFile: '/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_cam_to_imu.txt'
-VocabularyFile: '/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt'
-LogSettingsFile: '/home/fbjerkas/src/visual_odom/configurations/easylogging.conf'
-
 # Camera configurations and distortion parameters (OpenCV).
 Camera.fx: 718.8560
 Camera.fy: 718.8560

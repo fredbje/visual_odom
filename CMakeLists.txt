@@ -44,8 +44,10 @@ include_directories(
 #####################################
 set(sources_visual_odom
         src/easylogging++.cc
-        src/visualOdometry.cpp
+        src/visualOdometryStereo.cpp
         src/mapDrawer.cpp
+        src/system.h
+        src/system.cpp
         )
 
 

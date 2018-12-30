@@ -18,13 +18,14 @@ public:
     ~VisualOdometryStereo() = default;
 
     bool process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translation_stereo,
-            cv::Mat& imageLeftCurr,
-            cv::Mat& imageRightCurr,
+            const cv::Mat& imageLeftCurr,
+            const cv::Mat& imageRightCurr,
+            const cv::Mat& imageLeftPrev,
+            const cv::Mat& imageRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftPrev,
             std::vector<cv::Point_<PointType>>& pointsRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftCurr,
-            std::vector<cv::Point_<PointType>>& pointsRightCurr,
-            FeatureSet<PointType>& currentFeatures);
+            std::vector<cv::Point_<PointType>>& pointsRightCurr);
 
     void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points);
 
@@ -36,6 +37,7 @@ public:
                                      std::vector<int>& ages);
 
     void circularMatching(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
+            const cv::Mat& imageLeftPrev, const cv::Mat& imageRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
             std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
             std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
@@ -43,7 +45,7 @@ public:
 
     void bucketingFeatures(int image_height, int image_width, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket);
 
-    void appendNewFeatures(cv::Mat& image, FeatureSet<PointType>& currentFeatures);
+    void appendNewFeatures(const cv::Mat& image, FeatureSet<PointType>& currentFeatures);
 
 private:
     void removeInvalidPoints(std::vector<cv::Point_<PointType>>& points, const std::vector<bool>& status);
@@ -51,18 +53,17 @@ private:
 
 private:
     StereoCamera<CamType> stereoCamera_;
-    cv::Mat imageLeftPrev_, imageRightPrev_;
+    FeatureSet<PointType> currentFeatures_;
     cv::Matx<PoseType, 3, 1> translationMonoIgnored_ = cv::Matx<PoseType, 3, 1>::zeros();
 
     // ---------------------------
     // Settings for solvePnpRansac
     // ---------------------------
-    int cudaPnpRansac_ = true;
     int iterationsCount_ = 500;        // number of Ransac iterations.
     float reprojectionError_ = 2.0;    // maximum allowed distance to consider it an inlier.
     float confidence_ = 0.95;          // RANSAC successful confidence.
     bool useExtrinsicGuess_ = true;
-    int flags_ = cv::SOLVEPNP_P3P; // cv::SOLVEPNP_ITERATIVE;
+    int flags_ = cv::SOLVEPNP_ITERATIVE;
     cv::Matx<PoseType, 3, 1> rvec_ = cv::Matx<PoseType, 3, 1>::zeros();
     cv::Mat inliersIgnored_;
 
@@ -78,6 +79,9 @@ private:
     int fastThreshold_ = 20;
     bool nonmaxSuppression_ = true;
 
+    // ------------------------------------------
+    // Estimate roation with 5pt algorithm or PNP
+    // ------------------------------------------
     bool estimateRotation5Pt_ = true;
 
     // ------------------------------
