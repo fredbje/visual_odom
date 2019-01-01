@@ -73,6 +73,6 @@ private:
     bool firstPoseInitialized_;
 
     //GeographicLib::Geocentric earth(GeographicLib::Constants::WGS84_a(), GeographicLib::Constants::WGS84_f());
-    GeographicLib::LocalCartesian mProj;
+    GeographicLib::LocalCartesian enuProjection_;
 };
 #endif // GTSAM_OPTIMIZER_H

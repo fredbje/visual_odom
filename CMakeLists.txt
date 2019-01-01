@@ -35,6 +35,7 @@ find_package(Pangolin REQUIRED)
 include_directories(
         src
         src/evaluate
+        src/thirdparty
         ${EIGEN3_INCLUDE_DIR}
         ${GTSAM_INCLUDE_DIR}
         #${GTSAM_UNSTABLE_INCLUDE_DIR}
@@ -51,9 +52,10 @@ set(sources_visual_odom
         src/easylogging++.cc
         src/visualOdometryStereo.cpp
         src/mapDrawer.cpp
-        src/system.h
         src/system.cpp
         src/gtsamOptimizer.cpp
+        src/loopDetector.cpp
+        src/orbExtractor.cpp
         )
 
 
@@ -72,4 +74,6 @@ target_link_libraries(run
         ${OpenCV_LIBRARIES}
         ${Pangolin_LIBRARY}
         /usr/lib/x86_64-linux-gnu/libGeographic.so
+        ${PROJECT_SOURCE_DIR}/src/thirdparty/DBoW2/lib/libDBoW2.so
+        ${PROJECT_SOURCE_DIR}/src/thirdparty/DLib/lib/libDLib.so
         )

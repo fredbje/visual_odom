@@ -3,14 +3,14 @@
 #include "matrixutils.h"
 #include "utils.h"
 
-System::System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam)
-        : stereoCamera_(fSettings), frameId_(0), vos_(stereoCamera_), optimizer(stereoCamera_, imuTcam)
+System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam)
+        : stereoCamera_(fSettings), frameId_(0), vos_(stereoCamera_), optimizer(stereoCamera_, imuTcam), loopDetector(vocabularyFile, fSettings)
 {
     mapDrawerThread_ = std::thread(&MapDrawer::run, &mapDrawer_);
 }
 
-System::System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses)
-: System(fSettings, imuTcam)
+System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses)
+: System(fSettings, vocabularyFile, imuTcam)
 {
     mapDrawer_.setGtPoses(gtPoses);
 }
@@ -23,6 +23,10 @@ System::~System()
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
+
+    DLoopDetector::DetectionResult loopResult;
+    std::thread tLoopDetection(&LoopDetector::process, &loopDetector, imageLeftCurr, imageRightCurr, std::ref(loopResult));
+
     if(!imageLeftPrev_.empty())
     {
         pointsLeftPrev_.clear(); pointsRightPrev_.clear(); pointsLeftCurr_.clear(); pointsRightCurr_.clear();
@@ -48,13 +52,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         optimizer.addPose(framePose_, frameId_, timestamp);
     }
 
+    tLoopDetection.join();
+    LOG(INFO) << loopResult.detection();
     timestamps_.push_back(timestamp);
 
     optimizer.optimize();
     poses_ = optimizer.getCurrentEstimate();
-    //poses_.push_back(framePose_);
+    framePose_ = poses_.back();
     mapDrawer_.updateAllPoses(poses_);
-    //mapDrawer_.updateLastPose(framePose_);
 
     // -----------------------------------------
     // Prepare image for next frame

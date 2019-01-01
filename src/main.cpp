@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 
     el::Loggers::configureFromGlobal(logSettingsFile.c_str());
 
-    std::vector<TimeType> timestamps;
+    std::vector<double> timestamps;
     if(!loadTimeStamps(timestampsFile, timestamps))
     {
         LOG(ERROR) << "Could not load timestamps";
@@ -65,13 +65,13 @@ int main(int argc, char **argv)
     }
 
 
-    System SLAM(fSettings, imu_T_cam, gtPoses);
+    System SLAM(fSettings, vocabularyFile, imu_T_cam, gtPoses);
     cv::Mat imageLeft, imageRight;
     unsigned int frameIdInitial = 0;
-    unsigned int frameIdFinal = imageFileNamesLeft.size();
+    unsigned int frameIdFinal = imageFileNamesLeft.size() - 1;
     float avgFps, currFps;
     clock_t firstTic = clock();
-    for (unsigned int frameId = frameIdInitial; frameId < frameIdFinal; frameId++)
+    for (unsigned int frameId = frameIdInitial; frameId <= frameIdFinal; frameId++)
     {
         clock_t tic = clock();
         loadImages(imageLeft, imageRight, imageFileNamesLeft[frameId], imageFileNamesRight[frameId]);

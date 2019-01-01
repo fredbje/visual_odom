@@ -8,17 +8,13 @@
 #include "oxts.h"
 #include "stereocamera.h"
 #include "gtsamOptimizer.h"
-
-typedef double PoseType;
-typedef float PointType;
-typedef float TimeType;
-typedef float CamType;
+#include "loopDetector.h"
 
 class System
 {
 public:
-    System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam);
-    System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses);
+    System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam);
+    System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses);
     ~System();
 
     void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const oxts& navData, const double& timestamp);
@@ -44,6 +40,10 @@ private:
     std::thread mapDrawerThread_;
 
     GtsamOptimizer optimizer;
+
+    LoopDetector loopDetector;
+
+
 
 };
 

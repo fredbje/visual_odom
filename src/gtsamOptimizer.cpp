@@ -47,14 +47,6 @@ GtsamOptimizer::~GtsamOptimizer() {
     std::cout << "GtsamOptimizer destructor called." << std::endl;
 }
 
-/*
-void GtsamOptimizer::getMatchedPairs(const libviso2::Matcher::p_match &match,
-                  gtsam::StereoPoint2 &spt1,
-                  gtsam::StereoPoint2 &spt2){
-    spt1 = gtsam::StereoPoint2(match.u1p, match.u2p, match.v1p);
-    spt2 = gtsam::StereoPoint2(match.u1c, match.u2c, match.v1c);
-}
-*/
 
 void GtsamOptimizer::addPose(const gtsam::Pose3& estimate, const unsigned int& id, const double& timestamp)
 {
@@ -72,13 +64,23 @@ void GtsamOptimizer::addPose(const gtsam::Pose3& estimate, const unsigned int& i
 void GtsamOptimizer::addPose(const gtsam::Pose3& estimate, const unsigned int& id, const double& timestamp, const oxts& navdata)
 {
     addPose(estimate, id, timestamp);
-
+    addGpsPrior(id, navdata);
 }
 
 void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
 {
-    //gtsam::GPSFactor
-    //mNewFactors.emplace_shared<gtsam::PriorFactor<gtsam::()
+    if(!localOriginSet_)
+    {
+        enuProjection_.Reset(navdata.lat, navdata.lon, navdata.alt);
+        localOriginSet_ = true;
+        LOG(INFO) << "Initial global coordinates: " << std::setprecision(14) << navdata.lat << ", " << navdata.lon << ", " << navdata.alt;
+    }
+
+    double e, n, u;
+    enuProjection_.Forward(navdata.lat, navdata.lon, navdata.alt, e, n, u);
+    gtsam::Point3 enu(e, n, u);
+    gtsam::GPSFactor gpsFactor(gtsam::Symbol('x', id), enu, gpsNoise_);
+    mNewFactors.emplace_shared<gtsam::GPSFactor>(gpsFactor);
 }
 
 void GtsamOptimizer::addRelativePoseConstraint(const gtsam::Pose3& deltaT, unsigned int idFrom, unsigned int idTo)
@@ -112,7 +114,7 @@ void GtsamOptimizer::save() {
     for(const auto& poseId : poseIds_) {
         gtsam::Pose3 tempPose = mCurrentEstimate.at<gtsam::Pose3>(gtsam::Symbol('x', poseId));
         double lat, lon, h;
-        //mProj.Reverse(tempPose.x(), tempPose.y(), tempPose.z(), lat, lon, h);
+        enuProjection_.Reverse(tempPose.x(), tempPose.y(), tempPose.z(), lat, lon, h);
         f << std::setprecision(14) << lat << " " << lon << "\n";
     }
 }
