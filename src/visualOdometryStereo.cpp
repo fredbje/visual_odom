@@ -8,7 +8,7 @@
 #include <thread>
 #include "bucket.h"
 
-void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point_<PointType>>& vec)
+void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
 {
     vec.resize(d_mat.cols);
     cv::Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
@@ -22,16 +22,16 @@ void download(const cv::cuda::GpuMat& d_mat, std::vector<uchar>& vec)
     d_mat.download(mat);
 }
 
-void VisualOdometryStereo::featureDetectionFast(const cv::Mat& image, std::vector<cv::Point_<PointType>>& points)
+void VisualOdometryStereo::featureDetectionFast(const cv::Mat& image, std::vector<cv::Point2f>& points)
 {
     std::vector<cv::KeyPoint> keypoints;
     cv::FAST(image, keypoints, fastThreshold_, nonmaxSuppression_);
     cv::KeyPoint::convert(keypoints, points, std::vector<int>());
 }
 
-void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point_<PointType>>& points0, std::vector<cv::Point_<PointType>>& points1,
-                                 std::vector<cv::Point_<PointType>>& points2, std::vector<cv::Point_<PointType>>& points3,
-                                 std::vector<cv::Point_<PointType>>& points0_return,
+void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
+                                 std::vector<cv::Point2f>& points2, std::vector<cv::Point2f>& points3,
+                                 std::vector<cv::Point2f>& points0_return,
                                  std::vector<uchar>& status0, std::vector<uchar>& status1,
                                  std::vector<uchar>& status2, std::vector<uchar>& status3,
                                  std::vector<int>& ages)
@@ -46,10 +46,10 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point_<Po
     for( unsigned int i = 0; i < status3.size(); i++)
     {
         assert( (i - indexCorrection) >= 0 );
-        cv::Point_<PointType> pt0 = points0.at(i- indexCorrection);
-        cv::Point_<PointType> pt1 = points1.at(i- indexCorrection);
-        cv::Point_<PointType> pt2 = points2.at(i- indexCorrection);
-        cv::Point_<PointType> pt3 = points3.at(i- indexCorrection);
+        cv::Point2f pt0 = points0.at(i- indexCorrection);
+        cv::Point2f pt1 = points1.at(i- indexCorrection);
+        cv::Point2f pt2 = points2.at(i- indexCorrection);
+        cv::Point2f pt3 = points3.at(i- indexCorrection);
         //cv::Point_<PointType> pt0_r = points0_return.at(i- indexCorrection);
 
         if((status3.at(i) == 0) || (pt3.x < 0) || (pt3.y < 0)
@@ -78,9 +78,9 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point_<Po
 
 void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr,
         const cv::Mat& imageLeftPrev, const cv::Mat& imageRightPrev,
-        std::vector<cv::Point_<PointType>>& pointsLeftPrev, std::vector<cv::Point_<PointType>>& pointsRightPrev,
-        std::vector<cv::Point_<PointType>>& pointsLeftCurr, std::vector<cv::Point_<PointType>>& pointsRightCurr,
-        std::vector<cv::Point_<PointType>>& pointsLeftPrevReturn,
+        std::vector<cv::Point2f>& pointsLeftPrev, std::vector<cv::Point2f>& pointsRightPrev,
+        std::vector<cv::Point2f>& pointsLeftCurr, std::vector<cv::Point2f>& pointsRightCurr,
+        std::vector<cv::Point2f>& pointsLeftPrevReturn,
         std::vector<int>& ages)
 {
     //this function automatically gets rid of points for which tracking fails
@@ -132,7 +132,7 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftCurr, const 
 }
 
 
-void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, FeatureSet<PointType>& currentFeatures, int bucketSize, unsigned int featuresPerBucket){
+void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, FeatureSet& currentFeatures, int bucketSize, unsigned int featuresPerBucket){
     // This function buckets features
     // image: only use for getting dimension of the image
     // bucket_size: bucket size in pixel is bucket_size*bucket_size
@@ -141,14 +141,14 @@ void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, Fe
     int numBucketsWidth  = imageWidth / bucketSize;
     //int buckets_number = buckets_nums_height * buckets_nums_width;
 
-    std::vector<Bucket<PointType>> Buckets;
+    std::vector<Bucket> buckets;
 
     // initialize all the buckets
     for (int bucketIdxHeight = 0; bucketIdxHeight <= numBucketsHeight; bucketIdxHeight++)
     {
         for (int bucketIdxWidth = 0; bucketIdxWidth <= numBucketsWidth; bucketIdxWidth++)
         {
-            Buckets.emplace_back(Bucket<PointType>(featuresPerBucket));
+            buckets.emplace_back(Bucket(featuresPerBucket));
         }
     }
 
@@ -159,7 +159,7 @@ void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, Fe
         buckets_nums_height_idx = static_cast<int>(currentFeatures.points[i].y/bucketSize);
         buckets_nums_width_idx = static_cast<int>(currentFeatures.points[i].x/bucketSize);
         bucketIdx = buckets_nums_height_idx*numBucketsWidth + buckets_nums_width_idx;
-        Buckets[bucketIdx].add_feature(currentFeatures.points[i], currentFeatures.ages[i]);
+        buckets[bucketIdx].add_feature(currentFeatures.points[i], currentFeatures.ages[i]);
     }
 
     // get features back from buckets
@@ -169,21 +169,21 @@ void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, Fe
         for (int bucketIdxWidth = 0; bucketIdxWidth <= numBucketsWidth; bucketIdxWidth++)
         {
             bucketIdx = bucketIdxHeight*numBucketsWidth + bucketIdxWidth;
-            Buckets[bucketIdx].get_features(currentFeatures);
+            buckets[bucketIdx].get_features(currentFeatures);
         }
     }
     LOG(DEBUG) << "current features number after bucketing: " << currentFeatures.size();
 }
 
-void VisualOdometryStereo::appendNewFeatures(const cv::Mat& image, FeatureSet<PointType>& currentFeatures){
-    std::vector<cv::Point_<PointType>>  points_new;
+void VisualOdometryStereo::appendNewFeatures(const cv::Mat& image, FeatureSet& currentFeatures){
+    std::vector<cv::Point2f>  points_new;
     featureDetectionFast(image, points_new);
     currentFeatures.points.insert(currentFeatures.points.end(), points_new.begin(), points_new.end());
     std::vector<int>  ages_new(points_new.size(), 0);
     currentFeatures.ages.insert(currentFeatures.ages.end(), ages_new.begin(), ages_new.end());
 }
 
-void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point_<PointType>>& points, std::vector<cv::Point_<PointType>>& points_return, std::vector<bool>& status)
+void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point2f>& points, std::vector<cv::Point2f>& points_return, std::vector<bool>& status)
 {
     bool isValid;
     for ( unsigned int i = 0; i < points.size(); i++ )
@@ -194,7 +194,7 @@ void VisualOdometryStereo::checkValidMatch(std::vector<cv::Point_<PointType>>& p
     }
 }
 
-void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point_<PointType>>& points, const std::vector<bool>& status)
+void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points, const std::vector<bool>& status)
 {
     int index = 0;
     for( const bool& s : status )
@@ -210,15 +210,15 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point_<PointType>
     }
 }
 
-bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<PoseType, 3, 1>& translationStereo,
+bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
         const cv::Mat& imageLeftCurr,
         const cv::Mat& imageRightCurr,
         const cv::Mat& imageLeftPrev,
         const cv::Mat& imageRightPrev,
-        std::vector<cv::Point_<PointType>>& pointsLeftPrev,
-        std::vector<cv::Point_<PointType>>& pointsRightPrev,
-        std::vector<cv::Point_<PointType>>& pointsLeftCurr,
-        std::vector<cv::Point_<PointType>>& pointsRightCurr)
+        std::vector<cv::Point2f>& pointsLeftPrev,
+        std::vector<cv::Point2f>& pointsRightPrev,
+        std::vector<cv::Point2f>& pointsLeftCurr,
+        std::vector<cv::Point2f>& pointsRightCurr)
 {
     // ----------------------------
     // Feature detection using FAST
@@ -242,7 +242,7 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
     bucketingFeatures(stereoCamera_.height(), stereoCamera_.width(), currentFeatures_, bucketSize_, featuresPerBucket_);
 
     pointsLeftPrev = currentFeatures_.points;
-    std::vector<cv::Point_<PointType>> pointsLeftPrevReturn;
+    std::vector<cv::Point2f> pointsLeftPrevReturn;
     circularMatching(imageLeftCurr, imageRightCurr, imageLeftPrev, imageRightPrev, pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr, pointsLeftPrevReturn, currentFeatures_.ages);
 
     std::vector<bool> status;
@@ -269,9 +269,10 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
     // Rotation and translation estimation using PNP
     //----------------------------------------------
     // This function outputs {t}_T_{t-1}, but we want {t-1}_T_{t}
-    cv::solvePnPRansac( points3DPrev, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translationStereo,
+    // TODO Minimize reprojection error wrt scale of translation only.
+    cv::solvePnPRansac( points3DPrev, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_,
                         useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_, inliersIgnored_, flags_ );
-    translationStereo = - translationStereo;
+    translation_ = - translation_;
 
     if(estimateRotation5Pt_)
     {
@@ -280,14 +281,41 @@ bool VisualOdometryStereo::process(cv::Matx<PoseType, 3, 3>& rotation, cv::Matx<
         // ------------------------------------------------------------------------------------
         cv::Mat E, mask;
         E = cv::findEssentialMat(pointsLeftCurr, pointsLeftPrev, stereoCamera_.K(), cv::RANSAC, 0.999, 1.0, mask);
-        cv::recoverPose(E, pointsLeftCurr, pointsLeftPrev, rotation, translationMonoIgnored_, stereoCamera_.fx(), stereoCamera_.principalPoint(), mask);
+        cv::recoverPose(E, pointsLeftCurr, pointsLeftPrev, rotation_, translationMonoIgnored_, stereoCamera_.fx(), stereoCamera_.principalPoint(), mask);
     }
     else
     {
-        cv::Rodrigues(rvec_, rotation);
-        rotation = rotation.t();
+        cv::Rodrigues(rvec_, rotation_);
+        rotation_ = rotation_.t();
     }
 
+
+    cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation_);
+    if (abs(rotation_euler[1]) < 0.1 && abs(rotation_euler[0]) < 0.1 && abs(rotation_euler[2]) < 0.1)
+    {
+        double scale = sqrt((translation_(0))*(translation_(0))
+                            + (translation_(1))*(translation_(1))
+                            + (translation_(2))*(translation_(2))) ;
+
+        if (scale > 0.05 && scale < 10)
+        {
+            deltaT = gtsam::Pose3((gtsam::Matrix(4, 4) <<
+                    rotation_(0, 0), rotation_(0, 1), rotation_(0, 2), translation_(0),
+                    rotation_(1, 0), rotation_(1, 1), rotation_(1, 2), translation_(1),
+                    rotation_(2, 0), rotation_(2, 1), rotation_(2, 2), translation_(2),
+                    0.0, 0.0, 0.0, 1.0
+                                  ).finished());
+        }
+        else
+        {
+            deltaT = gtsam::Pose3();
+            LOG(WARNING) << "Scale below 0.1, or incorrect translation";
+        }
+    }
+    else
+    {
+        LOG(WARNING) << "Too large rotation";
+    }
 
     return true;
 }

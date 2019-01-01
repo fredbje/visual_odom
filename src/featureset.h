@@ -4,9 +4,8 @@
 #include <vector>
 #include <opencv2/core/types.hpp>
 
-template <typename T>
 struct FeatureSet {
-    std::vector<cv::Point_<T>> points;
+    std::vector<cv::Point2f> points;
     std::vector<int> ages;
     unsigned long size(){
         return points.size();

@@ -3,7 +3,6 @@
 
 #include "featureset.h"
 
-template <typename T>
 class Bucket
 {
 public:
@@ -11,7 +10,7 @@ public:
 
     ~Bucket() = default;
 
-    void add_feature(cv::Point_<T> point, int age)
+    void add_feature(cv::Point2f point, int age)
     {
         // won't add feature with age > 10;
         int age_threshold = 10;
@@ -43,7 +42,7 @@ public:
         }
     }
 
-    void get_features(FeatureSet<T>& current_features)
+    void get_features(FeatureSet& current_features)
     {
         current_features.points.insert(current_features.points.end(), features_.points.begin(), features_.points.end());
         current_features.ages.insert(current_features.ages.end(), features_.ages.begin(), features_.ages.end());
@@ -53,6 +52,6 @@ public:
 
 private:
     unsigned int max_size_;
-    FeatureSet<T> features_;
+    FeatureSet features_;
 };
 #endif

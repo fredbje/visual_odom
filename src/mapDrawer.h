@@ -4,13 +4,7 @@
 #include <string>
 #include <iostream>
 #include <mutex>
-//#include <Eigen/Eigen>
-//#include <boost/thread.hpp>
-
-//#include "libviso2/matrix.h"
-
-//#include <Eigen/Core>
-//#include <Eigen/Dense>
+#include <gtsam/geometry/Pose3.h>
 
 // For drawing
 #include <pangolin/pangolin.h>
@@ -20,29 +14,32 @@ public:
 
     MapDrawer();
 
-    MapDrawer(const std::vector<cv::Matx<double, 4, 4>> &gtPoses);
+    MapDrawer(const std::vector<gtsam::Pose3> &gtPoses);
 
     ~MapDrawer();
 
-    void setGtPoses(const std::vector<cv::Matx<double, 4, 4>> &gtPoses);
+    void setGtPoses(const std::vector<gtsam::Pose3> &gtPoses);
 
-    void updatePoses(const std::vector<cv::Matx<double, 4, 4>>& poses);
+    void updateAllPoses(const std::vector<gtsam::Pose3>& poses);
+
+    void updateNewPoses(const std::vector<gtsam::Pose3>& poses);
+
+    void updateLastPose(const gtsam::Pose3& pose);
 
     void run();
 
     void requestFinish();
 
 private:
-    cv::Matx<double, 4, 4> pose_;
-    std::vector<cv::Matx<double, 4, 4>> poses_;
-    std::vector<cv::Matx<double, 4, 4>> gtPoses_;
+    std::vector<gtsam::Pose3> poses_;
+    std::vector<gtsam::Pose3> gtPoses_;
 
     enum Color { red, green, blue };
     void drawCamera(pangolin::OpenGlMatrix &Twc, Color color);
     void drawLines(pangolin::OpenGlMatrix T1, pangolin::OpenGlMatrix T2, Color color);
 
     // Return global translation matrix
-    pangolin::OpenGlMatrix getOpenGlMatrix(cv::Matx<double, 4, 4> pose);
+    pangolin::OpenGlMatrix getOpenGlMatrix(const gtsam::Pose3& pose);
 
     std::mutex mutexPoses_, mutexFinish_;
 

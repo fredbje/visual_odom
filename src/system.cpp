@@ -3,14 +3,14 @@
 #include "matrixutils.h"
 #include "utils.h"
 
-System::System(cv::FileStorage& fSettings)
-        : vos_(fSettings)
+System::System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam)
+        : stereoCamera_(fSettings), frameId_(0), vos_(stereoCamera_), optimizer(stereoCamera_, imuTcam)
 {
     mapDrawerThread_ = std::thread(&MapDrawer::run, &mapDrawer_);
 }
 
-System::System(cv::FileStorage& fSettings, const std::vector<cv::Matx<double, 4, 4>> &gtPoses)
-: System(fSettings)
+System::System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses)
+: System(fSettings, imuTcam)
 {
     mapDrawer_.setGtPoses(gtPoses);
 }
@@ -21,13 +21,13 @@ System::~System()
     mapDrawerThread_.join();
 }
 
-void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const double& timestamp)
+void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
     if(!imageLeftPrev_.empty())
     {
         pointsLeftPrev_.clear(); pointsRightPrev_.clear(); pointsLeftCurr_.clear(); pointsRightCurr_.clear();
 
-        if (vos_.process(rotation_, translation_,
+        if (vos_.process(deltaT_,
                          imageLeftCurr, imageRightCurr,
                          imageLeftPrev_, imageRightPrev_,
                          pointsLeftPrev_,
@@ -35,34 +35,34 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                          pointsLeftCurr_,
                          pointsRightCurr_)) {
 
-            cv::Vec3d rotation_euler = rotationMatrixToEulerAngles(rotation_);
-
-            if (abs(rotation_euler[1]) < 0.1 && abs(rotation_euler[0]) < 0.1 && abs(rotation_euler[2]) < 0.1) {
-                integrateOdometryStereo(frame_pose_, rotation_, translation_);
-            } else {
-                LOG(WARNING) << "Too large rotation";
-            }
-
-            displayFrame(imageLeftCurr, pointsLeftPrev_, pointsLeftCurr_);
+            framePose_ = framePose_ * deltaT_;
+            optimizer.addPose(framePose_, frameId_, timestamp);
+            unsigned int lastFrameId = frameId_ - 1;
+            optimizer.addRelativePoseConstraint(deltaT_, lastFrameId, frameId_);
         }
     }
     else
     {
         assert(imageRightPrev_.empty());
-        rotation_ = cv::Matx<PoseType, 3, 3>::eye();
-        translation_ = cv::Matx<PoseType, 3, 1>::zeros();
-        frame_pose_ = cv::Matx<PoseType, 4, 4>::eye();
+        framePose_ = gtsam::Pose3();
+        optimizer.addPose(framePose_, frameId_, timestamp);
     }
 
     timestamps_.push_back(timestamp);
-    poses_.push_back(frame_pose_);
-    mapDrawer_.updatePoses(poses_);
+
+    optimizer.optimize();
+    poses_ = optimizer.getCurrentEstimate();
+    //poses_.push_back(framePose_);
+    mapDrawer_.updateAllPoses(poses_);
+    //mapDrawer_.updateLastPose(framePose_);
 
     // -----------------------------------------
     // Prepare image for next frame
     // -----------------------------------------
+    displayFrame(imageLeftCurr, pointsLeftPrev_, pointsLeftCurr_);
     imageLeftPrev_ = imageLeftCurr;
     imageRightPrev_ = imageRightCurr;
+    frameId_++;
 }
 
 void System::save()

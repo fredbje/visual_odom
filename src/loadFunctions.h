@@ -13,6 +13,7 @@
 #include "loadFunctions.h"
 #include "easylogging++.h"
 #include "matrixutils.h"
+#include "gtsam/geometry/Pose3.h"
 
 namespace bfs = boost::filesystem;
 
@@ -131,8 +132,7 @@ bool loadTimeStamps(const std::string &strTimestampsFile, std::vector<T> &vTimes
     return true;
 }
 
-template <typename T>
-bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Matx<T, 4, 4>> &vGtPoses)
+bool loadGtPoses(const std::string &strGtPosesFile, std::vector<gtsam::Pose3> &vGtPoses)
 {
     if(!bfs::is_regular_file(bfs::path(strGtPosesFile)))
     {
@@ -163,24 +163,22 @@ bool loadGtPoses(const std::string &strGtPosesFile, std::vector<cv::Matx<T, 4, 4
     while(std::getline(f, strLine))
     {
         std::istringstream iss(strLine);
-        T r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
+        double r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
         if(!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
         {
             break;
         }
 
-        cv::Matx<T, 4, 4> tempPose;
+        Eigen::Matrix4d tempPose;
         tempPose(0, 0) = r11; tempPose(0, 1) = r12; tempPose(0, 2) = r13; tempPose(0, 3) = t1;
         tempPose(1, 0) = r21; tempPose(1, 1) = r22; tempPose(1, 2) = r23; tempPose(1, 3) = t2;
         tempPose(2, 0) = r31; tempPose(2, 1) = r32; tempPose(2, 2) = r33; tempPose(2, 3) = t3;
         tempPose(3, 0) = 0.0; tempPose(3, 1) = 0.0; tempPose(3, 2) = 0.0; tempPose(3, 3) = 1.0;
-        vGtPoses.push_back(tempPose);
+        vGtPoses.emplace_back(gtsam::Pose3(tempPose));
     }
     LOG(INFO) << "Finished loading GT poses.";
     return true;
 }
-
-
 
 bool loadOxtsData(const std::string &strOxtsDir, std::vector<oxts> &vOxtsData)
 {
@@ -260,8 +258,7 @@ bool loadOxtsData(const std::string &strOxtsDir, std::vector<oxts> &vOxtsData)
     return true;
 }
 
-template <typename T>
-bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Matx<T, 4, 4>& imu_T_cam)
+bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, gtsam::Pose3& imu_T_cam)
 {
     if(!bfs::is_regular_file(cam2ImuCalibFile))
     {
@@ -285,17 +282,19 @@ bool loadCam2ImuTransform(const std::string& cam2ImuCalibFile, cv::Matx<T, 4, 4>
     }
 
     std::istringstream iss(strLine);
-    T r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
+    double r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3;
     if (!(iss >> r11 >> r12 >> r13 >> t1 >> r21 >> r22 >> r23 >> t2 >> r31 >> r32 >> r33 >> t3))
     {
         LOG(ERROR) << "Could not read stream from " << cam2ImuCalibFile;
         return false;
     }
 
-    imu_T_cam(0, 0) = r11; imu_T_cam(0, 1) = r12; imu_T_cam(0, 2) = r13; imu_T_cam(0, 3) = t1;
-    imu_T_cam(1, 0) = r21; imu_T_cam(1, 1) = r22; imu_T_cam(1, 2) = r23; imu_T_cam(1, 3) = t2;
-    imu_T_cam(2, 0) = r31; imu_T_cam(2, 1) = r32; imu_T_cam(2, 2) = r33; imu_T_cam(2, 3) = t3;
-    imu_T_cam(3, 0) = 0.0; imu_T_cam(3, 1) = 0.0; imu_T_cam(3, 2) = 0.0; imu_T_cam(3, 3) = 1.0;
+    Eigen::Matrix4d temp;
+    temp(0, 0) = r11; temp(0, 1) = r12; temp(0, 2) = r13; temp(0, 3) = t1;
+    temp(1, 0) = r21; temp(1, 1) = r22; temp(1, 2) = r23; temp(1, 3) = t2;
+    temp(2, 0) = r31; temp(2, 1) = r32; temp(2, 2) = r33; temp(2, 3) = t3;
+    temp(3, 0) = 0.0; temp(3, 1) = 0.0; temp(3, 2) = 0.0; temp(3, 3) = 1.0;
+    imu_T_cam = gtsam::Pose3(temp);
 
     LOG(INFO) << "Loaded camera to imu frame transformation.";
     return true;

@@ -1,10 +1,6 @@
-#include "utils.h"
 #include "visualOdometryStereo.h"
 #include "matrixutils.h"
-#include "stereocamera.h"
 #include "loadFunctions.h"
-#include "mapDrawer.h"
-#include <thread>
 #include "easylogging++.h"
 #include "system.h"
 
@@ -47,14 +43,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cv::Matx<PoseType, 4, 4> imu_T_cam;
+    gtsam::Pose3 imu_T_cam;
     if(!loadCam2ImuTransform(cam2ImuCalibrationFile, imu_T_cam))
     {
         LOG(ERROR) << "Could not load imu_T_cam matrix";
         return 1;
     }
 
-    std::vector<cv::Matx<PoseType, 4, 4>> gtPoses;
+    std::vector<gtsam::Pose3> gtPoses;
     if(!loadGtPoses(gtPosesFile, gtPoses))
     {
         LOG(ERROR) << "Could not open ground truth poses which was requested";
@@ -69,7 +65,7 @@ int main(int argc, char **argv)
     }
 
 
-    System SLAM(fSettings, gtPoses);
+    System SLAM(fSettings, imu_T_cam, gtPoses);
     cv::Mat imageLeft, imageRight;
     unsigned int frameIdInitial = 0;
     unsigned int frameIdFinal = imageFileNamesLeft.size();
@@ -80,7 +76,7 @@ int main(int argc, char **argv)
         clock_t tic = clock();
         loadImages(imageLeft, imageRight, imageFileNamesLeft[frameId], imageFileNamesRight[frameId]);
 
-        SLAM.process(imageLeft, imageRight, timestamps[frameId]);
+        SLAM.process(imageLeft, imageRight, oxtsData[frameId], timestamps[frameId]);
 
         clock_t toc = clock();
         currFps = 1.f / (toc - tic) * CLOCKS_PER_SEC;
@@ -89,8 +85,6 @@ int main(int argc, char **argv)
         LOG(DEBUG) << "Current FPS: " << currFps;
         LOG(DEBUG) << "Average FPS: " << avgFps;
     }
-
-
 
     return 0;
 }

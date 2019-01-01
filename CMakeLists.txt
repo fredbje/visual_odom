@@ -25,6 +25,8 @@ message(STATUS "Comper flags: ${CMAKE_CXX_FLAGS}")
 set(CMAKE_BUILD_TYPE Debug)
 
 find_package(Eigen3 REQUIRED)
+find_package(GTSAM REQUIRED)
+#find_package(GTSAM_UNSTABLE REQUIRED)
 find_package(Boost REQUIRED filesystem)
 find_package(OpenCV REQUIRED)
 find_package(Pangolin REQUIRED)
@@ -34,9 +36,12 @@ include_directories(
         src
         src/evaluate
         ${EIGEN3_INCLUDE_DIR}
+        ${GTSAM_INCLUDE_DIR}
+        #${GTSAM_UNSTABLE_INCLUDE_DIR}
         ${Boost_INCLUDE_DIRS} # For Boost::Filesystem
         ${OpenCV_INCLUDE_DIRS}
         ${Pangolin_INCLUDE_DIR}
+        /usr/include/GeographicLib
 )
 
 #####################################
@@ -48,6 +53,7 @@ set(sources_visual_odom
         src/mapDrawer.cpp
         src/system.h
         src/system.cpp
+        src/gtsamOptimizer.cpp
         )
 
 
@@ -60,6 +66,10 @@ add_executable(run
 target_link_libraries(run
         ${EIGEN3_LIBRARIES}
         ${Boost_LIBRARIES}
+        ${GTSAM_LIBS}
+        gtsam
+        #${GTSAM_UNSTABLE_LIBS}
         ${OpenCV_LIBRARIES}
         ${Pangolin_LIBRARY}
+        /usr/lib/x86_64-linux-gnu/libGeographic.so
         )

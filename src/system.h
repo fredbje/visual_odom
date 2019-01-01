@@ -5,6 +5,9 @@
 #include <thread>
 #include "visualOdometryStereo.h"
 #include "mapDrawer.h"
+#include "oxts.h"
+#include "stereocamera.h"
+#include "gtsamOptimizer.h"
 
 typedef double PoseType;
 typedef float PointType;
@@ -14,28 +17,33 @@ typedef float CamType;
 class System
 {
 public:
-    System(cv::FileStorage& fSettings);
-    System(cv::FileStorage& fSettings, const std::vector<cv::Matx<double, 4, 4>> &gtPoses);
+    System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam);
+    System(cv::FileStorage& fSettings, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses);
     ~System();
 
-    void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const double& timestamp);
+    void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const oxts& navData, const double& timestamp);
 
     void save();
 private:
+    StereoCamera stereoCamera_;
+
     cv::Mat imageLeftPrev_, imageRightPrev_;
 
-    cv::Matx<PoseType, 3, 3> rotation_;
-    cv::Matx<PoseType, 3, 1> translation_;
-    cv::Matx<PoseType, 4, 4> frame_pose_;
-    std::vector<cv::Matx<PoseType, 4, 4>> poses_;
+    gtsam::Pose3 framePose_;
+    gtsam::Pose3 deltaT_;
+    std::vector<gtsam::Pose3> poses_;
 
-    std::vector< cv::Point_<PointType> > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;   //vectors to store the coordinates of the feature points
+    std::vector< cv::Point2f > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;   //vectors to store the coordinates of the feature points
 
     std::vector<double> timestamps_;
+
+    unsigned int frameId_;
 
     VisualOdometryStereo vos_;
     MapDrawer mapDrawer_;
     std::thread mapDrawerThread_;
+
+    GtsamOptimizer optimizer;
 
 };
 

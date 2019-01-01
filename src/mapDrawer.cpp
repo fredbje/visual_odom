@@ -4,7 +4,7 @@
 
 MapDrawer::MapDrawer() = default;
 
-MapDrawer::MapDrawer(const std::vector<cv::Matx<double, 4, 4>>& gtPoses)
+MapDrawer::MapDrawer(const std::vector<gtsam::Pose3>& gtPoses)
 {
     gtPoses_ = gtPoses;
 }
@@ -13,13 +13,23 @@ MapDrawer::~MapDrawer() {
     std::cout << "MapDrawer destructor called." << std::endl;
 }
 
-void MapDrawer::setGtPoses(const std::vector<cv::Matx<double, 4, 4>> &gtPoses) {
+void MapDrawer::setGtPoses(const std::vector<gtsam::Pose3> &gtPoses) {
     gtPoses_ = gtPoses;
 }
 
-void MapDrawer::updatePoses(const std::vector<cv::Matx<double, 4, 4>>& poses) {
+void MapDrawer::updateAllPoses(const std::vector<gtsam::Pose3>& poses) {
     std::unique_lock<std::mutex> lock(mutexPoses_);
     poses_ = poses;
+}
+
+void MapDrawer::updateNewPoses(const std::vector<gtsam::Pose3>& poses) {
+    std::unique_lock<std::mutex> lock(mutexPoses_);
+    poses_.insert(poses_.end(), poses.begin() + poses_.size(), poses.end());
+}
+
+void MapDrawer::updateLastPose(const gtsam::Pose3& pose) {
+    std::unique_lock<std::mutex> lock(mutexPoses_);
+    poses_.push_back(pose);
 }
 
 void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color) {
@@ -63,8 +73,9 @@ void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color) {
     glPopMatrix();
 }
 
-pangolin::OpenGlMatrix MapDrawer::getOpenGlMatrix(cv::Matx<double, 4, 4> pose) {
+pangolin::OpenGlMatrix MapDrawer::getOpenGlMatrix(const gtsam::Pose3& gtsamPose) {
     pangolin::OpenGlMatrix Twc;
+    Eigen::Matrix4d pose = gtsamPose.matrix();
     Twc.m[ 0] = pose(0, 0);
     Twc.m[ 1] = pose(1, 0);
     Twc.m[ 2] = pose(2, 0);

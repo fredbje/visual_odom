@@ -2,6 +2,9 @@
 #define VISUALODOMETRY_MATRIXUTILS_H
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/eigen.hpp>
+#include <gtsam/geometry/Pose3.h>
+#include <Eigen/Dense>
 
 template <typename T>
 inline bool isRotationMatrix(const cv::Matx<T, 3, 3>& R)
@@ -157,6 +160,111 @@ inline cv::Matx33d quat2RotMat(const cv::Vec4d& q)
     R(1, 2) = 2.0 * (q(2)*q(3) - q(1)*q(0))*invs;
 
     return R;
+}
+
+template <typename T>
+inline gtsam::Rot3 rotation2Rot3(const cv::Matx<T, 3, 3>& rotation)
+{
+    gtsam::Rot3 R(
+            rotation(0, 0),
+            rotation(0, 1),
+            rotation(0, 2),
+
+            rotation(1, 0),
+            rotation(1, 1),
+            rotation(1, 2),
+
+            rotation(2, 0),
+            rotation(2, 1),
+            rotation(2, 2)
+    );
+    return R;
+}
+
+template <typename T>
+inline void rotation2Rot3(const cv::Matx<T, 3, 3>& rotation, gtsam::Rot3& R)
+{
+    R = gtsam::Rot3(
+            rotation(0, 0),
+            rotation(0, 1),
+            rotation(0, 2),
+
+            rotation(1, 0),
+            rotation(1, 1),
+            rotation(1, 2),
+
+            rotation(2, 0),
+            rotation(2, 1),
+            rotation(2, 2)
+    );
+}
+
+template <typename T>
+inline gtsam::Point3 translation2Point3(const cv::Matx<T, 3, 1>& translation)
+{
+    gtsam::Point3 t(
+            translation(0),
+            translation(1),
+            translation(2)
+    );
+    return t;
+}
+
+template <typename T>
+inline void translation2Point3(const cv::Matx<T, 3, 1>& translation, gtsam::Point3& t)
+{
+    t = gtsam::Point3(
+            translation(0),
+            translation(1),
+            translation(2)
+    );
+}
+
+
+template <typename T>
+inline gtsam::Pose3 pose2Pose3(const cv::Matx<T, 4, 4>& poseCv)
+{
+    Eigen::Matrix4d pose;
+    cv::cv2eigen(poseCv, pose);
+    gtsam::Pose3 gtsamPose(
+            pose
+    );
+    return gtsamPose;
+}
+
+template <typename T>
+inline void pose2Pose3(const cv::Matx<T, 4, 4>& cvPose, gtsam::Pose3& gtsamPose)
+{
+    Eigen::Matrix4d pose;
+    cv::cv2eigen(cvPose, pose);
+    gtsamPose = gtsam::Pose3(pose);
+}
+
+inline cv::Matx<double, 4, 4> pose32pose(const gtsam::Pose3& poseGtsam)
+{
+    Eigen::Matrix4d pose = poseGtsam.matrix();
+    cv::Matx<double, 4, 4> T(
+            pose(0, 0),
+            pose(0, 1),
+            pose(0, 2),
+            pose(0, 3),
+
+            pose(1, 0),
+            pose(1, 1),
+            pose(1, 2),
+            pose(1, 3),
+
+            pose(2, 0),
+            pose(2, 1),
+            pose(2, 2),
+            pose(2, 3),
+
+            pose(3, 0),
+            pose(3, 1),
+            pose(3, 2),
+            pose(3, 3)
+    );
+    return T;
 }
 
 #endif //VISUALODOMETRY_MATRIXUTILS_H
