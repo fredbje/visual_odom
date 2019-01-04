@@ -32,6 +32,8 @@ private:
     // Settings
     // -----------------------
     bool closeLoops_ = true;
+    bool useMapViewer_ = false;
+    bool useFrameViewer_ = false;
 
 
     StereoCamera stereoCamera_;
@@ -51,8 +53,8 @@ private:
 
     std::vector<double> timestamps_;
 
-    unsigned int frameId_;
-    int matchId_;
+    unsigned int frameIdCurr_, frameIdPrev_;
+    int frameIdMatch_;
 
     VisualOdometryStereo vosOdom_;
     VisualOdometryStereo vosLoop_;

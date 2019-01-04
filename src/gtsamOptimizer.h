@@ -38,7 +38,7 @@ public:
 
     void addPose(const gtsam::Pose3& estimate, const unsigned int& id, const double& timestamp, const oxts& navdata);
 
-    void addRelativePoseConstraint(const gtsam::Pose3& deltaT, unsigned int idFrom, unsigned int idTo);
+    void addRelativePoseConstraint(const gtsam::Pose3& deltaT, unsigned int idFrom, unsigned int idTo, bool isLoopClosureConstraint);
 
     void optimize();
 
@@ -62,7 +62,7 @@ private:
     //size_t mPoseId, mLandmarkId, mSwitchId;
 
     gtsam::noiseModel::Isotropic::shared_ptr mMeasurementNoise2D, mMeasurementNoise3D;
-    gtsam::noiseModel::Diagonal::shared_ptr mOdometryNoise, gpsNoise_;
+    gtsam::noiseModel::Diagonal::shared_ptr mOdometryNoise, gpsNoise_, mLoopClosureNoise;
     gtsam::StereoCamera mStereoCamera;
 
     gtsam::NonlinearFactorGraph mNewFactors;

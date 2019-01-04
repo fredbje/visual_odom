@@ -22,6 +22,30 @@
 #include <gtsam/inference/Symbol.h>
 
 
+float computeFeatureFlow(const std::vector<cv::Point2f>& pointsPrev, const std::vector<cv::Point2f>& pointsCurr)
+{
+    float total_flow = 0.0;
+
+    size_t pointSetSize = pointsPrev.size();
+
+    if(pointSetSize != pointsCurr.size())
+    {
+        LOG(ERROR) << "Point sets must be of equal size";
+        return total_flow;
+    }
+
+    for (size_t i = 0; i < pointSetSize; ++i)
+    {
+        float x_diff = pointsCurr[i].x - pointsPrev[i].x;
+        float y_diff = pointsCurr[i].y - pointsPrev[i].y;
+        total_flow += sqrt(x_diff * x_diff + y_diff * y_diff);
+    }
+
+
+    return total_flow / pointSetSize;
+}
+
+
 void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
 {
     vec.resize(d_mat.cols);
@@ -229,7 +253,7 @@ void VisualOdometryStereo::removeInvalidPoints(std::vector<cv::Point2f>& points,
     }
 }
 
-bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
+bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
         const cv::Mat& imageLeftCurr,
         const cv::Mat& imageRightCurr,
         const cv::Mat& imageLeftPrev,
@@ -290,6 +314,8 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     {
         const char *err_msg = e.what();
         LOG(ERROR) << "Tracking failed. Exception caught: " << err_msg;
+        deltaT = gtsam::Pose3();
+        averageFlow = 0.f;
         return false;
     }
 
@@ -308,6 +334,8 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     {
         const char *err_msg = e.what();
         LOG(ERROR) << "Tracking failed. Exception caught: " << err_msg;
+        deltaT = gtsam::Pose3();
+        averageFlow = 0.f;
         return false;
     }
 
@@ -335,6 +363,7 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     {
         cv::Rodrigues(rvec_, rotation_);
         rotation_ = rotation_.t();
+        averageFlow = 0.f;
     }
 
 
@@ -364,6 +393,8 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     {
         LOG(WARNING) << "Too large rotation";
     }
+
+    averageFlow = computeFeatureFlow(pointsLeftPrev, pointsLeftCurr);
 
 /*
     // --------------------------------------
@@ -403,14 +434,14 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     return true;
 }
 
-bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
+bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
              const cv::Mat& imageLeftCurr,
              const cv::Mat& imageRightCurr,
              const cv::Mat& imageLeftPrev,
              const cv::Mat& imageRightPrev)
 {
     std::vector< cv::Point2f > pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr;
-    return process(deltaT, imageLeftCurr, imageRightCurr, imageLeftPrev, imageRightPrev,
+    return process(deltaT, averageFlow, imageLeftCurr, imageRightCurr, imageLeftPrev, imageRightPrev,
             pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr);
 }
 

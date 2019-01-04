@@ -17,7 +17,7 @@ public:
     }
     ~VisualOdometryStereo() = default;
 
-    bool process(gtsam::Pose3& deltaT,
+    bool process(gtsam::Pose3& deltaT, float& averageFlow,
             const cv::Mat& imageLeftCurr,
             const cv::Mat& imageRightCurr,
             const cv::Mat& imageLeftPrev,
@@ -27,7 +27,7 @@ public:
             std::vector<cv::Point2f>& pointsLeftCurr,
             std::vector<cv::Point2f>& pointsRightCurr);
 
-    bool process(gtsam::Pose3& deltaT,
+    bool process(gtsam::Pose3& deltaT, float& averageFlow,
                  const cv::Mat& imageLeftCurr,
                  const cv::Mat& imageRightCurr,
                  const cv::Mat& imageLeftPrev,
@@ -62,6 +62,11 @@ private:
     cv::Matx<double, 3, 3> rotation_;
     cv::Matx<double, 3, 1> translation_;
     FeatureSet currentFeatures_;
+
+    // ------------------------------
+    // Settings for keyframe decision
+    // ------------------------------
+    float opticalFlowThreshold = 10.f;
 
     // ---------------------------
     // Settings for solvePnpRansac

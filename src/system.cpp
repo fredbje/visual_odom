@@ -13,39 +13,46 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightPrev_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageLeftMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
-        frameId_(0), matchId_(-1),
+        frameIdCurr_(0), frameIdPrev_(0), frameIdMatch_(-1),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
         optimizer(stereoCamera_, imuTcam),
         loopDetector(vocabularyFile, fSettings), numLoops_(0),
         state_(State::WaitingForFirstImage)
 {
-    mapDrawerThread_ = std::thread(&MapDrawer::run, &mapDrawer_);
+    if(useMapViewer_)
+    {
+        mapDrawerThread_ = std::thread(&MapDrawer::run, &mapDrawer_);
+    }
 }
 
 System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam, const std::vector<gtsam::Pose3>& gtPoses)
 : System(fSettings, vocabularyFile, imuTcam)
 {
     gtPoses_ = gtPoses;
-    mapDrawer_.setGtPoses(gtPoses);
+    if(useMapViewer_)
+    {
+        mapDrawer_.setGtPoses(gtPoses);
+    }
 }
 
 System::~System()
 {
-    mapDrawer_.requestFinish();
-    mapDrawerThread_.join();
+    if(useMapViewer_)
+    {
+        mapDrawer_.requestFinish();
+        mapDrawerThread_.join();
+    }
 }
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
 
-    if(closeLoops_ && matchId_ >= 0)
+    if(closeLoops_ && frameIdMatch_ >= 0)
     {
-        //loadImageLeft(imageLeftMatch, matchId_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
-        //loadImageRight(imageRightMatch, matchId_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
-        if(vosLoop_.process(deltaTMatch_, imageLeftMatch_, imageRightMatch_, imageLeftPrev_, imageRightPrev_))
+        float averageFlow;
+        if(vosLoop_.process(deltaTMatch_, averageFlow, imageLeftMatch_, imageRightMatch_, imageLeftPrev_, imageRightPrev_))
         {
-            unsigned int lastFrameId = frameId_ - 1;
-            optimizer.addRelativePoseConstraint(deltaTMatch_, lastFrameId, matchId_);
+            optimizer.addRelativePoseConstraint(deltaTMatch_, frameIdPrev_, frameIdMatch_, true);
         }
     }
 
@@ -59,7 +66,8 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     {
         pointsLeftPrev_.clear(); pointsRightPrev_.clear(); pointsLeftCurr_.clear(); pointsRightCurr_.clear();
 
-        if (vosOdom_.process(deltaTOdom_,
+        float averageFlow;
+        if (vosOdom_.process(deltaTOdom_, averageFlow,
                          imageLeftCurr, imageRightCurr,
                          imageLeftPrev_, imageRightPrev_,
                          pointsLeftPrev_,
@@ -68,15 +76,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                          pointsRightCurr_)) {
 
             framePose_ = framePose_ * deltaTOdom_;
-            optimizer.addPose(framePose_, frameId_, timestamp);
-            int lastFrameId = frameId_ - 1;
-            optimizer.addRelativePoseConstraint(deltaTOdom_, lastFrameId, frameId_);
+            optimizer.addPose(framePose_, frameIdCurr_, timestamp);
+            optimizer.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
         }
     }
     else
     {
         framePose_ = gtsam::Pose3();
-        optimizer.addPose(framePose_, frameId_, timestamp);
+        optimizer.addPose(framePose_, frameIdCurr_, timestamp);
         state_ = State::Initialized;
     }
 
@@ -85,14 +92,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         tLoopDetection.join();
         if(loopResult_.detection())
         {
-            matchId_ = loopResult_.match;
-            imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), matchId_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
-            imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), matchId_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            frameIdMatch_ = loopResult_.match;
+            imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), frameIdMatch_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), frameIdMatch_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
             numLoops_++;
         }
         else
         {
-            matchId_ = -1;
+            frameIdMatch_ = -1;
         }
         LOG(DEBUG) << "Loops detected so far: " << numLoops_;
     }
@@ -102,17 +109,29 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     optimizer.optimize();
     poses_ = optimizer.getCurrentEstimate();
     framePose_ = poses_.back();
-    mapDrawer_.updateAllPoses(poses_);
+
+    // --------------------
+    // Update visualization
+    // --------------------
+    if(useMapViewer_)
+    {
+        mapDrawer_.updateAllPoses(poses_);
+    }
+
+    if(useFrameViewer_)
+    {
+        displayFrame(imageLeftCurr, pointsLeftPrev_, pointsLeftCurr_);
+    }
 
     // -----------------------------------------
     // Prepare image for next frame
     // -----------------------------------------
-    displayFrame(imageLeftCurr, pointsLeftPrev_, pointsLeftCurr_);
     imageLeftPrev_ = imageLeftCurr;
     imageRightPrev_ = imageRightCurr;
-    frameId_++;
+    frameIdPrev_ = frameIdCurr_;
+    frameIdCurr_++;
 
-    if(closeLoops_ && matchId_ >= 0)
+    if(closeLoops_ && frameIdMatch_ >= 0)
     {
         imageLeftLoaderThread_.join();
         imageRightLoaderThread_.join();

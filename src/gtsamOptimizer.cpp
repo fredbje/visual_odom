@@ -37,6 +37,7 @@ GtsamOptimizer::GtsamOptimizer(const StereoCamera& stereoCamera, const gtsam::Po
 : stereoCamera_(stereoCamera), localOriginSet_(false), firstPoseInitialized_(false)
 {
     mOdometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.05)).finished()); // 10cm std on x,y,z 0.05 rad on roll,pitch,yaw
+    mLoopClosureNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.3), gtsam::Vector3::Constant(1.0)).finished());
     gpsNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 5.0, 5.0, 5.0).finished());
 
     mParameters.relinearizeThreshold = 0.01;
@@ -84,9 +85,16 @@ void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
     mNewFactors.emplace_shared<gtsam::GPSFactor>(gpsFactor);
 }
 
-void GtsamOptimizer::addRelativePoseConstraint(const gtsam::Pose3& deltaT, unsigned int idFrom, unsigned int idTo)
+void GtsamOptimizer::addRelativePoseConstraint(const gtsam::Pose3& deltaT, unsigned int idFrom, unsigned int idTo, bool isLoopClosureConstraint)
 {
-    mNewFactors.emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(gtsam::Symbol('x', idFrom), gtsam::Symbol('x', idTo), deltaT, mOdometryNoise);
+    if(isLoopClosureConstraint)
+    {
+        mNewFactors.emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(gtsam::Symbol('x', idFrom), gtsam::Symbol('x', idTo), deltaT, mLoopClosureNoise);
+    }
+    else
+    {
+        mNewFactors.emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(gtsam::Symbol('x', idFrom), gtsam::Symbol('x', idTo), deltaT, mOdometryNoise);
+    }
 }
 
 void GtsamOptimizer::optimize()
