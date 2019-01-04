@@ -19,6 +19,7 @@
 #include <gtsam/slam/PoseRotationPrior.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/navigation/GPSFactor.h>
+#include <gtsam/slam/dataset.h> // For save and load functions
 //#include <gtsam/slam/BearingFactor.h>
 //#include <gtsam/slam/SmartProjectionPoseFactor.h>
 //#include <gtsam/geometry/EssentialMatrix.h>
@@ -106,10 +107,10 @@ std::vector<gtsam::Pose3> GtsamOptimizer::getCurrentEstimate()
     return poses;
 }
 
-void GtsamOptimizer::save() {
-    std::cout << "Saving GPS track to file..." << std::endl;
+void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
+    LOG(INFO) << "Saving GPS track to file...";
     std::ofstream f;
-    f.open("output.txt");
+    f.open(outputFile);
 
     for(const auto& poseId : poseIds_) {
         gtsam::Pose3 tempPose = mCurrentEstimate.at<gtsam::Pose3>(gtsam::Symbol('x', poseId));
@@ -119,3 +120,7 @@ void GtsamOptimizer::save() {
     }
 }
 
+void GtsamOptimizer::saveGraphAndValues(const std::string& outputFile)
+{
+    gtsam::writeG2o(mIsam.getFactorsUnsafe(), mCurrentEstimate, outputFile);
+}

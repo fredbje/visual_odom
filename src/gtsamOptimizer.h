@@ -50,7 +50,10 @@ public:
                       gtsam::StereoPoint2 &p1,
                       gtsam::StereoPoint2 &p2);
     */
-    void save();
+    void saveTrajectoryLatLon(const std::string& outputFile);
+
+    void saveGraphAndValues(const std::string& outputFile);
+
 private:
     StereoCamera stereoCamera_;
 

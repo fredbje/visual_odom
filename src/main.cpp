@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     System SLAM(fSettings, vocabularyFile, imu_T_cam, gtPoses);
     cv::Mat imageLeft, imageRight;
     unsigned int frameIdInitial = 0;
-    unsigned int frameIdFinal = imageFileNamesLeft.size() - 1;
+    unsigned int frameIdFinal = 100;//imageFileNamesLeft.size() - 1;
     float avgFps, currFps;
     clock_t firstTic = clock();
     for (unsigned int frameId = frameIdInitial; frameId <= frameIdFinal; frameId++)
@@ -85,6 +85,8 @@ int main(int argc, char **argv)
         LOG(DEBUG) << "Current FPS: " << currFps;
         LOG(DEBUG) << "Average FPS: " << avgFps;
     }
+
+    SLAM.save();
 
     return 0;
 }

@@ -20,30 +20,52 @@ public:
     void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const oxts& navData, const double& timestamp);
 
     void save();
+
+    enum class State
+    {
+        WaitingForFirstImage,
+        Initialized
+    };
+
 private:
+    // -----------------------
+    // Settings
+    // -----------------------
+    bool closeLoops_ = true;
+
+
     StereoCamera stereoCamera_;
 
     cv::Mat imageLeftPrev_, imageRightPrev_;
+    cv::Mat imageLeftMatch_, imageRightMatch_;
+    std::thread imageLeftLoaderThread_;
+    std::thread imageRightLoaderThread_;
 
     gtsam::Pose3 framePose_;
-    gtsam::Pose3 deltaT_;
+    gtsam::Pose3 deltaTOdom_;
+    gtsam::Pose3 deltaTMatch_;
     std::vector<gtsam::Pose3> poses_;
+    std::vector<gtsam::Pose3> gtPoses_;
 
     std::vector< cv::Point2f > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;   //vectors to store the coordinates of the feature points
 
     std::vector<double> timestamps_;
 
     unsigned int frameId_;
+    int matchId_;
 
-    VisualOdometryStereo vos_;
+    VisualOdometryStereo vosOdom_;
+    VisualOdometryStereo vosLoop_;
     MapDrawer mapDrawer_;
     std::thread mapDrawerThread_;
 
     GtsamOptimizer optimizer;
 
+    DLoopDetector::DetectionResult loopResult_;
     LoopDetector loopDetector;
+    unsigned int numLoops_;
 
-
+    State state_;
 
 };
 

@@ -32,7 +32,7 @@ OrbExtractor::OrbExtractor(const cv::FileStorage& fSettings) {
 // ----------------------------------------------------------------------------
 
 OrbExtractor::~OrbExtractor() {
-    delete mpOrb;
+    //delete mpOrb;
 }
 
 // ----------------------------------------------------------------------------

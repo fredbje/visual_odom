@@ -27,6 +27,12 @@ public:
             std::vector<cv::Point2f>& pointsLeftCurr,
             std::vector<cv::Point2f>& pointsRightCurr);
 
+    bool process(gtsam::Pose3& deltaT,
+                 const cv::Mat& imageLeftCurr,
+                 const cv::Mat& imageRightCurr,
+                 const cv::Mat& imageLeftPrev,
+                 const cv::Mat& imageRightPrev);
+
     void featureDetectionFast(const cv::Mat& image, std::vector<cv::Point2f>& points);
 
     void deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1,
@@ -62,7 +68,7 @@ private:
     // ---------------------------
     int iterationsCount_ = 500;        // number of Ransac iterations.
     float reprojectionError_ = 2.0;    // maximum allowed distance to consider it an inlier.
-    float confidence_ = 0.95;          // RANSAC successful confidence.
+    float confidence_ = 0.99;          // RANSAC successful confidence.
     bool useExtrinsicGuess_ = true;
     int flags_ = cv::SOLVEPNP_ITERATIVE;
     cv::Matx<double, 3, 1> rvec_ = cv::Matx<double, 3, 1>::zeros();

@@ -33,6 +33,34 @@ void displayMap(int frame_id, cv::Mat& trajectory, cv::Matx<T, 3, 1>& translatio
 }
 */
 
+inline void loadImageLeft(cv::Mat& image, int frame_id, std::string filepath){
+    LOG(DEBUG) << "Loading left image";
+    char file[200];
+    sprintf(file, "image_0/%06d.png", frame_id);
+
+    std::string filename = filepath + std::string(file);
+
+    image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+    if(image.empty())
+    {
+        LOG(WARNING) << "Could not load image from " << filename;
+    }
+}
+
+inline void loadImageRight(cv::Mat& image, int frame_id, std::string filepath){
+    LOG(DEBUG) << "Loading right image";
+    char file[200];
+    sprintf(file, "image_1/%06d.png", frame_id);
+
+    std::string filename = filepath + std::string(file);
+
+    image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+    if(image.empty())
+    {
+        LOG(WARNING) << "Could not load image from " << filename;
+    }
+}
+
 inline void displayFrame(const cv::Mat& image, const std::vector<cv::Point2f>& pointsPrev, const std::vector<cv::Point2f>& pointsCurr)
 {
     static cv::Mat vis;
@@ -45,10 +73,11 @@ inline void displayFrame(const cv::Mat& image, const std::vector<cv::Point2f>& p
         cv::line(vis, pointsPrev[i], pointsCurr[i], CV_RGB(0, 255, 0));
     }
     cv::imshow("vis ", vis);
+    // Wait 1ms (shortest time possible)
     cv::waitKey(1);
 }
 
-inline void saveTrajectoryRpg(std::string filename, const std::vector<gtsam::Pose3>& gtPoses, const std::vector<double>& timestamps)
+inline void saveTrajectoryRpg(std::string filename, const std::vector<gtsam::Pose3>& poses, const std::vector<double>& timestamps)
 {
     std::ofstream fout(filename.c_str(), std::ofstream::out);
     if(!fout.is_open())
@@ -58,12 +87,12 @@ inline void saveTrajectoryRpg(std::string filename, const std::vector<gtsam::Pos
     }
 
     fout << "# time x y z qx qy qz qw" << std::endl;
-    for(unsigned int i = 0; i < gtPoses.size(); i++)
+    for(unsigned int i = 0; i < timestamps.size(); i++)
     {
-        const gtsam::Pose3& gtPose = gtPoses[i];
-        gtsam::Quaternion q = gtPose.rotation().toQuaternion();
+        const gtsam::Pose3& pose = poses[i];
+        gtsam::Quaternion q = pose.rotation().toQuaternion();
 
-        fout << timestamps[i] << " " << gtPose.x() << " " << gtPose.y() << " " << gtPose.z() << " "
+        fout << timestamps[i] << " " << pose.x() << " " << pose.y() << " " << pose.z() << " "
              << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << std::endl;
     }
     fout.close();

@@ -8,6 +8,20 @@
 #include <thread>
 #include "bucket.h"
 
+// ---------------
+// GTSAM includes
+// ---------------
+#include <gtsam/geometry/StereoPoint2.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Point3.h>
+#include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+#include <gtsam/linear/NoiseModel.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/NonlinearEquality.h>
+#include <gtsam/inference/Symbol.h>
+
+
 void download(const cv::cuda::GpuMat& d_mat, std::vector<cv::Point2f>& vec)
 {
     vec.resize(d_mat.cols);
@@ -101,11 +115,16 @@ void VisualOdometryStereo::circularMatching(const cv::Mat& imageLeftCurr, const 
        cv::cuda::GpuMat d_pointsLeftPrevReturn(pointsLeftPrevReturn);
 
        cv::cuda::GpuMat d_status0, d_status1, d_status2, d_status3;
+       cv::cuda::Stream stream;
        cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(winSize_, maxLevel_, opticalFlowIters_);
-       d_pyrLK_sparse->calc(d_imageLeftPrev,  d_imageRightPrev, d_pointsLeftPrev,  d_pointsRightPrev,      d_status0);
-       d_pyrLK_sparse->calc(d_imageRightPrev, d_imageRightCurr, d_pointsRightPrev, d_pointsRightCurr,      d_status1);
-       d_pyrLK_sparse->calc(d_imageRightCurr, d_imageLeftCurr,  d_pointsRightCurr, d_pointsLeftCurr,       d_status2);
-       d_pyrLK_sparse->calc(d_imageLeftCurr,  d_imageLeftPrev,  d_pointsLeftCurr,  d_pointsLeftPrevReturn, d_status3);
+       d_pyrLK_sparse->calc(d_imageLeftPrev,  d_imageRightPrev, d_pointsLeftPrev,  d_pointsRightPrev,      d_status0, cv::noArray(), stream);
+       stream.waitForCompletion();
+       d_pyrLK_sparse->calc(d_imageRightPrev, d_imageRightCurr, d_pointsRightPrev, d_pointsRightCurr,      d_status1, cv::noArray(), stream);
+       stream.waitForCompletion();
+       d_pyrLK_sparse->calc(d_imageRightCurr, d_imageLeftCurr,  d_pointsRightCurr, d_pointsLeftCurr,       d_status2, cv::noArray(), stream);
+       stream.waitForCompletion();
+       d_pyrLK_sparse->calc(d_imageLeftCurr,  d_imageLeftPrev,  d_pointsLeftCurr,  d_pointsLeftPrevReturn, d_status3, cv::noArray(), stream);
+       stream.waitForCompletion();
 
        download(d_pointsRightPrev,      pointsRightPrev);
        download(d_pointsRightCurr,      pointsRightCurr);
@@ -262,26 +281,55 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
     // Triangulate 3D Points
     // ---------------------
     cv::Mat points4DPrev, points3DPrev;
-    cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), pointsLeftPrev, pointsRightPrev, points4DPrev );
-    cv::convertPointsFromHomogeneous(points4DPrev.t(), points3DPrev);
+    try
+    {
+        cv::triangulatePoints( stereoCamera_.projMatL(), stereoCamera_.projMatR(), pointsLeftPrev, pointsRightPrev, points4DPrev );
+        cv::convertPointsFromHomogeneous(points4DPrev.t(), points3DPrev);
+    }
+    catch ( cv::Exception& e )
+    {
+        const char *err_msg = e.what();
+        LOG(ERROR) << "Tracking failed. Exception caught: " << err_msg;
+        return false;
+    }
 
     // ---------------------------------------------
     // Rotation and translation estimation using PNP
     //----------------------------------------------
     // This function outputs {t}_T_{t-1}, but we want {t-1}_T_{t}
     // TODO Minimize reprojection error wrt scale of translation only.
-    cv::solvePnPRansac( points3DPrev, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_,
-                        useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_, inliersIgnored_, flags_ );
-    translation_ = - translation_;
+    try
+    {
+        cv::solvePnPRansac( points3DPrev, pointsLeftCurr, stereoCamera_.K(), stereoCamera_.distCoeffs(), rvec_, translation_,
+                            useExtrinsicGuess_, iterationsCount_, reprojectionError_, confidence_, inliersIgnored_, flags_ );
+        translation_ = - translation_;
+    }
+    catch ( cv::Exception& e )
+    {
+        const char *err_msg = e.what();
+        LOG(ERROR) << "Tracking failed. Exception caught: " << err_msg;
+        return false;
+    }
 
     if(estimateRotation5Pt_)
     {
         // ------------------------------------------------------------------------------------
         // Rotation (R) estimation using Nister's Five Points Algorithm (yields better results, but little slower)
         // ------------------------------------------------------------------------------------
-        cv::Mat E, mask;
-        E = cv::findEssentialMat(pointsLeftCurr, pointsLeftPrev, stereoCamera_.K(), cv::RANSAC, 0.999, 1.0, mask);
-        cv::recoverPose(E, pointsLeftCurr, pointsLeftPrev, rotation_, translationMonoIgnored_, stereoCamera_.fx(), stereoCamera_.principalPoint(), mask);
+        try
+        {
+            cv::Mat E, mask;
+            E = cv::findEssentialMat(pointsLeftCurr, pointsLeftPrev, stereoCamera_.K(), cv::RANSAC, 0.999, 1.0, mask);
+            cv::recoverPose(E, pointsLeftCurr, pointsLeftPrev, rotation_, translationMonoIgnored_, stereoCamera_.fx(), stereoCamera_.principalPoint(), mask);
+        }
+        catch ( cv::Exception& e )
+        {
+            const char *err_msg = e.what();
+            LOG(WARNING) << "Rotation estimation with 5pt algorithm failed. Using rotation from solvePnp. Exeption caught: " << err_msg;
+            cv::Rodrigues(rvec_, rotation_);
+            rotation_ = rotation_.t();
+        }
+
     }
     else
     {
@@ -317,7 +365,52 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
         LOG(WARNING) << "Too large rotation";
     }
 
+/*
+    // --------------------------------------
+    // GTSAM CODE
+    // --------------------------------------
+    //read stereo measurements and construct smart factors
+    const gtsam::noiseModel::Isotropic::shared_ptr model = gtsam::noiseModel::Isotropic::Sigma(3,1);
+    gtsam::SmartStereoProjectionPoseFactor::shared_ptr factor;
+    gtsam::Values initial_estimate;
+    gtsam::NonlinearFactorGraph graph;
+    for(unsigned int i = 0; i < pointsLeftPrev.size(); i++)
+    {
+        if( (std::abs(pointsLeftPrev[i].y - pointsRightPrev[i].y) < 2) && (std::abs(pointsLeftCurr[i].y - pointsRightCurr[i].y) < 2) )
+        {
+            graph.push_back(factor);
+            factor = gtsam::SmartStereoProjectionPoseFactor::shared_ptr(new gtsam::SmartStereoProjectionPoseFactor(model));
+            factor->add(gtsam::StereoPoint2(pointsLeftPrev[i].x, pointsRightPrev[i].x, (pointsLeftPrev[i].y + pointsRightPrev[i].y) / 2.f ), 1, stereoCamera_.cal3Stereo());
+            factor->add(gtsam::StereoPoint2(pointsLeftCurr[i].x, pointsRightCurr[i].x, (pointsLeftCurr[i].y + pointsRightCurr[i].y) / 2.f ), 2, stereoCamera_.cal3Stereo());
+            LOG(INFO) << "Added factor";
+        }
+    }
+    initial_estimate.insert(1, gtsam::Pose3());
+    initial_estimate.insert(2, deltaT.inverse());
+    //constrain the first pose such that it cannot change from its original value during optimization
+    // NOTE: NonlinearEquality forces the optimizer to use QR rather than Cholesky
+    // QR is much slower than Cholesky, but numerically more stable
+    graph.emplace_shared<gtsam::NonlinearEquality<gtsam::Pose3> >(1, gtsam::Pose3());
+    gtsam::LevenbergMarquardtParams params;
+//    params.verbosityLM = gtsam::LevenbergMarquardtParams::TRYLAMBDA;
+//    params.verbosity = gtsam::NonlinearOptimizerParams::ERROR;
+    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    gtsam::Values result = optimizer.optimize();
+    deltaT = result.at<gtsam::Pose3>(2);
+
+ */
+
     return true;
 }
 
+bool VisualOdometryStereo::process(gtsam::Pose3& deltaT,
+             const cv::Mat& imageLeftCurr,
+             const cv::Mat& imageRightCurr,
+             const cv::Mat& imageLeftPrev,
+             const cv::Mat& imageRightPrev)
+{
+    std::vector< cv::Point2f > pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr;
+    return process(deltaT, imageLeftCurr, imageRightCurr, imageLeftPrev, imageRightPrev,
+            pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr);
+}
 

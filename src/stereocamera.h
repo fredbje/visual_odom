@@ -82,6 +82,8 @@ public:
 
     const cv::Matx<float, 4, 1> &distCoeffs() { return distCoeffs_; }
 
+    const gtsam::Cal3_S2Stereo::shared_ptr cal3Stereo() { return cal3Stereo_; }
+
 private:
     float fx_;
     float fy_;
