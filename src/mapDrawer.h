@@ -11,37 +11,24 @@
 
 class MapDrawer{
 public:
-
-    MapDrawer();
-
-    MapDrawer(const std::vector<gtsam::Pose3> &gtPoses);
+    MapDrawer(const std::vector<gtsam::Pose3>& poses, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses);
 
     ~MapDrawer();
-
-    void setGtPoses(const std::vector<gtsam::Pose3> &gtPoses);
-
-    void updateAllPoses(const std::vector<gtsam::Pose3>& poses);
-
-    void updateNewPoses(const std::vector<gtsam::Pose3>& poses);
-
-    void updateLastPose(const gtsam::Pose3& pose);
 
     void run();
 
     void requestFinish();
 
 private:
-    std::vector<gtsam::Pose3> poses_;
-    std::vector<gtsam::Pose3> gtPoses_;
+    const std::vector<gtsam::Pose3>& poses_;
+    const std::vector<gtsam::Pose3>& gtPoses_;
 
     enum Color { red, green, blue };
     void drawCamera(pangolin::OpenGlMatrix &Twc, Color color);
     void drawLines(pangolin::OpenGlMatrix T1, pangolin::OpenGlMatrix T2, Color color);
 
-    // Return global translation matrix
-    pangolin::OpenGlMatrix getOpenGlMatrix(const gtsam::Pose3& pose);
-
-    std::mutex mutexPoses_, mutexFinish_;
+    std::mutex mutexFinish_;
+    std::mutex& mutexPoses_;
 
     bool checkFinish();
     bool finishRequested_ = false;

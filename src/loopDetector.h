@@ -16,12 +16,13 @@
 
 class LoopDetector {
 public:
+    LoopDetector();
     LoopDetector(const std::string &strVocabularyFile, const cv::FileStorage& fSettings);
 
     ~LoopDetector();
 
     // Add image to database and check for loops. Returns -1 if no loop, id of matched frame otherwise.
-    void process(const cv::Mat &imgLeft, const cv::Mat &imgRight, DLoopDetector::DetectionResult &result);
+    void process(const cv::Mat &image, DLoopDetector::DetectionResult &result);
 
     void saveDatabase(const std::string &strDatabaseFile);
     void loadDatabase(const std::string &strDatabaseFile);
@@ -35,6 +36,9 @@ protected:
 
     std::vector<cv::KeyPoint> mvKeys;
     std::vector<DBoW2::FORB::TDescriptor> mvDescriptors;
+
+private:
+    bool initialized_ = false;
 };
 
 #endif //SFO_LOOPDETECTOR_H

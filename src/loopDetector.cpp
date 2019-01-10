@@ -4,6 +4,7 @@
 #include "loopDetector.h"
 
 // ----------------------------------------------------------------------------
+LoopDetector::LoopDetector() = default;
 
 LoopDetector::LoopDetector(const std::string &strVocabularyFile, const cv::FileStorage& fSettings) {
 
@@ -46,29 +47,36 @@ LoopDetector::LoopDetector(const std::string &strVocabularyFile, const cv::FileS
     mpVoc = new OrbVocabulary(strVocabularyFile);
 
     mpDetector = new OrbLoopDetector(*mpVoc, *mpParams);
-    // we can allocate memory for the expected number of images
-    //mpDetector->allocate(filenames.size());
 
     mpExtractor = new OrbExtractor(fSettings);
 
+    initialized_ = true;
 }
 
 // ---------------------------------------------------------------------------
 
 LoopDetector::~LoopDetector(){
     std::cout << "LoopDetector destructor called." << std::endl;
-    delete mpDetector;
-    delete mpVoc;
-    delete mpExtractor;
-    delete mpParams;
+    if(initialized_)
+    {
+        delete mpDetector;
+        delete mpVoc;
+        delete mpExtractor;
+        delete mpParams;
+    }
 }
 
 // ---------------------------------------------------------------------------
 
 
-void LoopDetector::process(const cv::Mat &imgLeft, const cv::Mat &imgRight, DLoopDetector::DetectionResult &result) {
+void LoopDetector::process(const cv::Mat &image, DLoopDetector::DetectionResult &result) {
+    if(!initialized_)
+    {
+        return;
+    }
+
     // get features
-    mpExtractor->operator()(imgLeft, mvKeys, mvDescriptors);
+    mpExtractor->operator()(image, mvKeys, mvDescriptors);
 
     mpDetector->detectLoop(mvKeys, mvDescriptors, result);
     if(result.detection()) {
@@ -79,6 +87,11 @@ void LoopDetector::process(const cv::Mat &imgLeft, const cv::Mat &imgRight, DLoo
 // ---------------------------------------------------------------------------
 
 void LoopDetector::saveDatabase(const std::string &strDatabaseFile) {
+    if(!initialized_)
+    {
+        return;
+    }
+
     std::cout << "Saving database to " << strDatabaseFile << "..." << std::endl;
     mpDetector->getDatabase().save(strDatabaseFile);
 
@@ -88,6 +101,11 @@ void LoopDetector::saveDatabase(const std::string &strDatabaseFile) {
 
 
 void LoopDetector::loadDatabase(const std::string &strDatabaseFile) {
+    if(!initialized_)
+    {
+        return;
+    }
+
     std::cout << "Loading database from " << strDatabaseFile << ". This may take a while..." << std::endl;
     OrbDatabase db;
     db.load(strDatabaseFile);

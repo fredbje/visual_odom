@@ -15,10 +15,22 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         frameIdCurr_(0), frameIdPrev_(0), frameIdMatch_(-1),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
+        mapDrawer_(poses_, gtPoses_, mutexPoses_),
         optimizer(stereoCamera_, imuTcam),
-        loopDetector(vocabularyFile, fSettings), numLoops_(0),
+        numLoops_(0),
         state_(State::WaitingForFirstImage)
 {
+    if(closeLoops_ && !optimize_)
+    {
+        LOG(WARNING) << "Optimization must be activated to close loops. Disabling loop closure.";
+        closeLoops_ = false;
+    }
+
+    if(closeLoops_)
+    {
+        loopDetector = LoopDetector(vocabularyFile, fSettings);
+    }
+
     if(useMapViewer_)
     {
         mapDrawerThread_ = std::thread(&MapDrawer::run, &mapDrawer_);
@@ -29,10 +41,6 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
 : System(fSettings, vocabularyFile, imuTcam)
 {
     gtPoses_ = gtPoses;
-    if(useMapViewer_)
-    {
-        mapDrawer_.setGtPoses(gtPoses);
-    }
 }
 
 System::~System()
@@ -59,7 +67,7 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     std::thread tLoopDetection;
     if(closeLoops_)
     {
-        tLoopDetection = std::thread(&LoopDetector::process, &loopDetector, imageLeftCurr, imageRightCurr, std::ref(loopResult_));
+        tLoopDetection = std::thread(&LoopDetector::process, &loopDetector, imageLeftCurr, std::ref(loopResult_));
     }
 
     if(state_ == State::Initialized)
@@ -76,14 +84,20 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                          pointsRightCurr_)) {
 
             framePose_ = framePose_ * deltaTOdom_;
-            optimizer.addPose(framePose_, frameIdCurr_, timestamp);
-            optimizer.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
+            if(optimize_)
+            {
+                optimizer.addPose(framePose_, frameIdCurr_, timestamp);
+                optimizer.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
+            }
         }
     }
     else
     {
         framePose_ = gtsam::Pose3();
-        optimizer.addPose(framePose_, frameIdCurr_, timestamp);
+        if(optimize_)
+        {
+            optimizer.addPose(framePose_, frameIdCurr_, timestamp);
+        }
         state_ = State::Initialized;
     }
 
@@ -106,18 +120,23 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     timestamps_.push_back(timestamp);
 
-    optimizer.optimize();
-    poses_ = optimizer.getCurrentEstimate();
-    framePose_ = poses_.back();
+    if(optimize_)
+    {
+        optimizer.optimize();
+        {
+            std::unique_lock<std::mutex> lock(mutexPoses_);
+            poses_ = optimizer.getCurrentEstimate();
+        }
+        framePose_ = poses_.back();
+    }
+    else
+    {
+        poses_.push_back(framePose_);
+    }
 
     // --------------------
     // Update visualization
     // --------------------
-    if(useMapViewer_)
-    {
-        mapDrawer_.updateAllPoses(poses_);
-    }
-
     if(useFrameViewer_)
     {
         displayFrame(imageLeftCurr, pointsLeftPrev_, pointsLeftCurr_);

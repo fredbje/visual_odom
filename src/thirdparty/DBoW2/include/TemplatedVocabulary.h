@@ -435,13 +435,13 @@ template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
   (const std::string &filename): m_scoring_object(NULL)
 {
-  if(filename.find("txt") == -1) 
+  if(filename.find("txt") == std::string::npos)
   {
     load(filename);
   }
   else
   {
-    loadFromTextFile(filename); 
+    loadFromTextFile(filename);
   }
 }
 

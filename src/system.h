@@ -31,10 +31,10 @@ private:
     // -----------------------
     // Settings
     // -----------------------
+    bool optimize_ = false;
     bool closeLoops_ = true;
-    bool useMapViewer_ = false;
-    bool useFrameViewer_ = false;
-
+    bool useMapViewer_ = true;
+    bool useFrameViewer_ = true;
 
     StereoCamera stereoCamera_;
 
@@ -68,6 +68,8 @@ private:
     unsigned int numLoops_;
 
     State state_;
+
+    std::mutex mutexPoses_;
 
 };
 

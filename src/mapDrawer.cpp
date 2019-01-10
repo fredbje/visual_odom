@@ -1,38 +1,19 @@
 #include <opencv2/core/persistence.hpp>
 #include "mapDrawer.h"
+#include "easylogging++.h"
 
-
-MapDrawer::MapDrawer() = default;
-
-MapDrawer::MapDrawer(const std::vector<gtsam::Pose3>& gtPoses)
+MapDrawer::MapDrawer(const std::vector<gtsam::Pose3>& poses, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses)
+: poses_(poses), gtPoses_(gtPoses), mutexPoses_(mutexPoses)
 {
-    gtPoses_ = gtPoses;
 }
 
-MapDrawer::~MapDrawer() {
-    std::cout << "MapDrawer destructor called." << std::endl;
+MapDrawer::~MapDrawer()
+{
+    LOG(INFO) << "MapDrawer destructor called.";
 }
 
-void MapDrawer::setGtPoses(const std::vector<gtsam::Pose3> &gtPoses) {
-    gtPoses_ = gtPoses;
-}
-
-void MapDrawer::updateAllPoses(const std::vector<gtsam::Pose3>& poses) {
-    std::unique_lock<std::mutex> lock(mutexPoses_);
-    poses_ = poses;
-}
-
-void MapDrawer::updateNewPoses(const std::vector<gtsam::Pose3>& poses) {
-    std::unique_lock<std::mutex> lock(mutexPoses_);
-    poses_.insert(poses_.end(), poses.begin() + poses_.size(), poses.end());
-}
-
-void MapDrawer::updateLastPose(const gtsam::Pose3& pose) {
-    std::unique_lock<std::mutex> lock(mutexPoses_);
-    poses_.push_back(pose);
-}
-
-void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color) {
+void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color)
+{
     float CameraSize = 0.5;
     float mCameraLineWidth = 1;
     const float &w = CameraSize;
@@ -43,11 +24,16 @@ void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color) {
     glMultMatrixd(Twc.m);
 
     glLineWidth(mCameraLineWidth);
-    if(color == red) {
+    if(color == red)
+    {
         glColor3f(1.0f, 0.0f, 0.0f);
-    } else if(color == green) {
+    }
+    else if(color == green)
+    {
         glColor3f(0.0f, 1.0f, 0.0f);
-    }else if (color == blue) {
+    }
+    else if (color == blue)
+    {
         glColor3f(0.0f, 0.0f, 1.0f);
     }
 
@@ -73,40 +59,21 @@ void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color) {
     glPopMatrix();
 }
 
-pangolin::OpenGlMatrix MapDrawer::getOpenGlMatrix(const gtsam::Pose3& gtsamPose) {
-    pangolin::OpenGlMatrix Twc;
-    Eigen::Matrix4d pose = gtsamPose.matrix();
-    Twc.m[ 0] = pose(0, 0);
-    Twc.m[ 1] = pose(1, 0);
-    Twc.m[ 2] = pose(2, 0);
-    Twc.m[ 3] = pose(3, 0);
-    Twc.m[ 4] = pose(0, 1);
-    Twc.m[ 5] = pose(1, 1);
-    Twc.m[ 6] = pose(2, 1);
-    Twc.m[ 7] = pose(3, 1);
-    Twc.m[ 8] = pose(0, 2);
-    Twc.m[ 9] = pose(1, 2);
-    Twc.m[10] = pose(2, 2);
-    Twc.m[11] = pose(3, 2);
-    Twc.m[12] = pose(0, 3);
-    Twc.m[13] = pose(1, 3);
-    Twc.m[14] = pose(2, 3);
-    Twc.m[15] = pose(3, 3);
-    return Twc;
-}
-
-void MapDrawer::requestFinish() {
+void MapDrawer::requestFinish()
+{
     std::unique_lock<std::mutex> lock(mutexFinish_);
     finishRequested_ = true;
 }
 
-bool MapDrawer::checkFinish() {
+bool MapDrawer::checkFinish()
+{
     std::unique_lock<std::mutex> lock(mutexFinish_);
     return finishRequested_;
 }
 
 // TODO Make it possible to option out viewing different poses and graphs.
-void MapDrawer::run() {
+void MapDrawer::run()
+{
     pangolin::CreateWindowAndBind("Pose Viewer", 1024, 768);
     glEnable(GL_DEPTH_TEST);
 
@@ -136,16 +103,18 @@ void MapDrawer::run() {
     bool bFollow = true;
 
     // TODO Fix so that viewer stops when pressing ESC.
-    while(true /*!pangolin::ShouldQuit()*/) {
+    while(true /*!pangolin::ShouldQuit()*/)
+    {
         // Clear screen and activate view to render into
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Skip if there are no poses
-        if(poses_.empty()) {
+        if(poses_.empty())
+        {
             continue;
         }
 
-        Tcw = getOpenGlMatrix(poses_.back());
+        Tcw = pangolin::OpenGlMatrix(poses_.back().matrix());
         if(menuFollowCamera && bFollow)
         {
             s_cam.Follow(Tcw);
@@ -172,25 +141,30 @@ void MapDrawer::run() {
 
         // Draw current frame
         size_t i = 1;
-        while(true) {
+        while(true)
+        {
             std::unique_lock<std::mutex> lockGtsam(mutexPoses_);
-            if(i >= poses_.size()) {
+            if(i >= poses_.size())
+            {
                 break;
             }
 
-            T1Gtsam    = getOpenGlMatrix(poses_.at(i - 1));
-            T2Gtsam    = getOpenGlMatrix(poses_.at(i));
+            T1Gtsam    = pangolin::OpenGlMatrix(poses_.at(i - 1).matrix());
+            T2Gtsam    = pangolin::OpenGlMatrix(poses_.at(i).matrix());
             lockGtsam.unlock();
-            if(i == 1) {
+            if(i == 1)
+            {
                 drawCamera(T1Gtsam, green);
             }
             drawCamera(T2Gtsam, green);
             drawLines(T1Gtsam, T2Gtsam, green);
 
-            if(!gtPoses_.empty()) {
-                T1Gt = getOpenGlMatrix(gtPoses_.at(i - 1));
-                T2Gt = getOpenGlMatrix(gtPoses_.at(i));
-                if (i == 1) {
+            if(!gtPoses_.empty())
+            {
+                T1Gt = pangolin::OpenGlMatrix(gtPoses_.at(i - 1).matrix());
+                T2Gt = pangolin::OpenGlMatrix(gtPoses_.at(i).matrix());
+                if (i == 1)
+                {
                     drawCamera(T1Gt, red);
                 }
                 drawCamera(T2Gt, red);
@@ -202,25 +176,34 @@ void MapDrawer::run() {
         // Swap frames and Process Events
         pangolin::FinishFrame();
 
-        if(checkFinish()) {
+        if(checkFinish())
+        {
             break;
         }
     }
     pangolin::DestroyWindow("Pose Viewer");
     delete handler3D;
-    std::cout << "Exiting MapDrawer thread." << std::endl;
+    LOG(INFO) << "Exiting MapDrawer thread.";
 }
 
-void MapDrawer::drawLines(pangolin::OpenGlMatrix T1, pangolin::OpenGlMatrix T2, Color color) {
+void MapDrawer::drawLines(pangolin::OpenGlMatrix T1, pangolin::OpenGlMatrix T2, Color color)
+{
     float mLineSize = 3;
     glLineWidth(mLineSize);
-    if(color == red) {
+
+    if(color == red)
+    {
         glColor3f(1.0f, 0.0f, 0.0f);
-    } else if(color == green) {
+    }
+    else if(color == green)
+    {
         glColor3f(0.0f, 1.0f, 0.0f);
-    }else if (color == blue) {
+    }
+    else if (color == blue)
+    {
         glColor3f(0.0f, 0.0f, 1.0f);
     }
+
     glBegin(GL_LINES);
     glVertex3f((float) T1.m[12], (float) T1.m[13], (float) T1.m[14]);
     glVertex3f((float) T2.m[12], (float) T2.m[13], (float) T2.m[14]);

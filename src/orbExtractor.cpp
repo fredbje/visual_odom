@@ -1,14 +1,15 @@
 #include <iostream>
-
 #include "orbExtractor.h"
 
-OrbExtractor::OrbExtractor(const cv::FileStorage& fSettings) {
-
+OrbExtractor::OrbExtractor(const cv::FileStorage& fSettings)
+{
+    /*
     int nFeatures = fSettings["ORBextractor.nFeatures"];
     float fScaleFactor = fSettings["ORBextractor.scaleFactor"];
     int nLevels = fSettings["ORBextractor.nLevels"];
     int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
     int fMinThFAST = fSettings["ORBextractor.minThFAST"];
+    */
 
     /*
      * ORB::create(int	nfeatures = 500,    The maximum number of features to retain.
@@ -26,12 +27,12 @@ OrbExtractor::OrbExtractor(const cv::FileStorage& fSettings) {
     //mpOrb = new ORB_SLAM2::ORBextractor(nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
 
     mpOrb = cv::ORB::create();
-
 }
 
 // ----------------------------------------------------------------------------
 
-OrbExtractor::~OrbExtractor() {
+OrbExtractor::~OrbExtractor()
+{
     //delete mpOrb;
 }
 
@@ -45,15 +46,16 @@ void OrbExtractor::operator() (const cv::Mat &im, std::vector<cv::KeyPoint> &key
     //mpOrb->operator()(im, mask, keys, descriptors);
     mpOrb->detectAndCompute(im, mask, keys, descriptors);
     changeStructure(descriptors, vDescriptors);
-
 }
 
 // ----------------------------------------------------------------------------
 
-void changeStructure(const cv::Mat &plain, std::vector<cv::Mat> &out) {
+void changeStructure(const cv::Mat &plain, std::vector<cv::Mat> &out)
+{
     out.resize(plain.rows);
 
-    for(int i = 0; i < plain.rows; ++i) {
+    for(int i = 0; i < plain.rows; ++i)
+    {
         out[i] = plain.row(i);
     }
 }
