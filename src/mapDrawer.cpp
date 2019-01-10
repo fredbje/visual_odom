@@ -83,6 +83,7 @@ void MapDrawer::run()
 
     pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(175));
     pangolin::Var<bool> menuFollowCamera("menu.Follow Camera",true,true);
+    pangolin::Var<bool> menuShowGt("menu.Show Ground Truth", true, true);
 
     // Define Camera Render Object (for view / scene browsing)
     pangolin::OpenGlRenderState s_cam(
@@ -159,7 +160,7 @@ void MapDrawer::run()
             drawCamera(T2Gtsam, green);
             drawLines(T1Gtsam, T2Gtsam, green);
 
-            if(!gtPoses_.empty())
+            if(!gtPoses_.empty() && menuShowGt)
             {
                 T1Gt = pangolin::OpenGlMatrix(gtPoses_.at(i - 1).matrix());
                 T2Gt = pangolin::OpenGlMatrix(gtPoses_.at(i).matrix());
