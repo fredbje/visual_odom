@@ -9,10 +9,30 @@
 
 class StereoCamera {
 public:
-    StereoCamera(float fx, float fy, float cx, float cy, float bf, int width, int height,
-                 float k1 = 0, float k2 = 0, float p1 = 0, float p2 = 0)
-            : fx_(fx), fy_(fy), cx_(cx), cy_(cy), bf_(bf), base_(-bf / fx), width_(width), height_(height), k1_(k1),
-              k2_(k2), p1_(p1), p2_(p2) {
+    StereoCamera(float fx,
+                 float fy,
+                 float cx,
+                 float cy,
+                 float bf,
+                 int width,
+                 int height,
+                 float k1 = 0,
+                 float k2 = 0,
+                 float p1 = 0,
+                 float p2 = 0)
+            : fx_(fx),
+              fy_(fy),
+              cx_(cx),
+              cy_(cy),
+              bf_(bf),
+              base_(-bf / fx),
+              width_(width),
+              height_(height),
+              k1_(k1),
+              k2_(k2),
+              p1_(p1),
+              p2_(p2)
+    {
         projMatL_ = cv::Matx<float, 3, 4>(fx, 0.f, cx, 0.f, 0.f, fy, cy, 0.f, 0, 0.f, 1.f, 0.f);
         projMatR_ = cv::Matx<float, 3, 4>(fx, 0.f, cx, bf, 0.f, fy, cy, 0.f, 0, 0.f, 1.f, 0.f);
         K_ = cv::Matx<float, 3, 3>(fx, 0.f, cx, 0.f, fy, cy, 0.f, 0.f, 1.f);
@@ -83,6 +103,32 @@ public:
     const cv::Matx<float, 4, 1> &distCoeffs() { return distCoeffs_; }
 
     const gtsam::Cal3_S2Stereo::shared_ptr cal3Stereo() { return cal3Stereo_; }
+
+    void saveSettings(const std::string& settingsFile)
+    {
+        std::fstream f;
+        f.open(settingsFile, std::ios_base::app);
+        if(f.is_open())
+        {
+            f << "////////////////// Camera Settings //////////////////" << std::endl;
+            f << "fx: " << fx_ << std::endl;
+            f << "fy: " << fy_ << std::endl;
+            f << "cx: " << cx_ << std::endl;
+            f << "bf: " << bf_ << std::endl;
+            f << "base: " << base_ << std::endl;
+            f << "width: " << width_ << std::endl;
+            f << "height: " << height_ << std::endl;
+            f << "k1: " << k1_ << std::endl;
+            f << "k2: " << k2_ << std::endl;
+            f << "p1: " << p1_ << std::endl;
+            f << "p2: " << p2_ << std::endl;
+            f.close();
+        }
+        else
+        {
+            LOG(ERROR) << "StereoCamera could not open " << settingsFile;
+        }
+    }
 
 private:
     float fx_;

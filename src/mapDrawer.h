@@ -5,13 +5,13 @@
 #include <iostream>
 #include <mutex>
 #include <gtsam/geometry/Pose3.h>
-
+#include "frame.h"
 // For drawing
 #include <pangolin/pangolin.h>
 
 class MapDrawer{
 public:
-    MapDrawer(const std::vector<gtsam::Pose3>& poses, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses);
+    MapDrawer(const std::vector<Frame>& frames, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses);
 
     ~MapDrawer();
 
@@ -20,7 +20,7 @@ public:
     void requestFinish();
 
 private:
-    const std::vector<gtsam::Pose3>& poses_;
+    const std::vector<Frame>& frames_;
     const std::vector<gtsam::Pose3>& gtPoses_;
 
     enum Color { red, green, blue };

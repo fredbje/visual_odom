@@ -42,7 +42,9 @@ public:
 
     void optimize();
 
-    std::vector<gtsam::Pose3> getCurrentEstimate();
+    std::vector<gtsam::Pose3> getCurrentTrajectoryEstimate();
+
+    gtsam::Pose3 getCurrentPoseEstimate(unsigned int frameId);
 
     // From the matched feature pair to previous and current sterepoints
     /*
@@ -53,6 +55,8 @@ public:
     void saveTrajectoryLatLon(const std::string& outputFile);
 
     void saveGraphAndValues(const std::string& outputFile);
+
+    void saveSettings(const std::string& settingsFile);
 
 private:
     StereoCamera stereoCamera_;

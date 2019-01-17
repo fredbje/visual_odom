@@ -16,7 +16,6 @@
 
 class LoopDetector {
 public:
-    LoopDetector();
     LoopDetector(const std::string &strVocabularyFile, const cv::FileStorage& fSettings);
 
     ~LoopDetector();
@@ -26,6 +25,8 @@ public:
 
     void saveDatabase(const std::string &strDatabaseFile);
     void loadDatabase(const std::string &strDatabaseFile);
+
+    void saveSettings(const std::string& settingFile);
 
 protected:
     OrbLoopDetector::Parameters *mpParams;
@@ -70,8 +71,6 @@ private:
     // yields the best results in recall/time.
     // Check the T-RO paper for more information.
 
-
-    bool initialized_ = false;
 };
 
 #endif //SFO_LOOPDETECTOR_H

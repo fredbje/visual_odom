@@ -5,7 +5,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/date_time.hpp>
 #include <sstream>
-
+#include <chrono>
 
 System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, const gtsam::Pose3& imuTcam)
         : stereoCamera_(fSettings),
@@ -15,8 +15,8 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         frameIdCurr_(0), frameIdPrev_(0), frameIdMatch_(-1),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
-        mapDrawer_(poses_, gtPoses_, mutexPoses_),
-        optimizer(stereoCamera_, imuTcam),
+        mapDrawer_(frames_, gtPoses_, mutexPoses_),
+        optimizer_(stereoCamera_, imuTcam),
         numLoops_(0),
         state_(State::WaitingForFirstImage)
 {
@@ -28,7 +28,7 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
 
     if(closeLoops_)
     {
-        loopDetector = LoopDetector(vocabularyFile, fSettings);
+        loopDetector_ = new LoopDetector(vocabularyFile, fSettings);
     }
 
     if(useMapViewer_)
@@ -50,6 +50,11 @@ System::~System()
         mapDrawer_.requestFinish();
         mapDrawerThread_.join();
     }
+
+    if(closeLoops_)
+    {
+        delete loopDetector_;
+    }
 }
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
@@ -60,14 +65,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         float averageFlow;
         if(vosLoop_.process(deltaTMatch_, averageFlow, imageLeftMatch_, imageRightMatch_, imageLeftPrev_, imageRightPrev_))
         {
-            optimizer.addRelativePoseConstraint(deltaTMatch_, frameIdPrev_, frameIdMatch_, true);
+            optimizer_.addRelativePoseConstraint(deltaTMatch_, frameIdPrev_, frameIdMatch_, true);
         }
     }
 
     std::thread tLoopDetection;
     if(closeLoops_)
     {
-        tLoopDetection = std::thread(&LoopDetector::process, &loopDetector, imageLeftCurr, std::ref(loopResult_));
+        tLoopDetection = std::thread(&LoopDetector::process, loopDetector_, imageLeftCurr, std::ref(loopResult_));
     }
 
     if(state_ == State::Initialized)
@@ -75,28 +80,37 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         pointsLeftPrev_.clear(); pointsRightPrev_.clear(); pointsLeftCurr_.clear(); pointsRightCurr_.clear();
 
         float averageFlow;
-        if (vosOdom_.process(deltaTOdom_, averageFlow,
-                         imageLeftCurr, imageRightCurr,
-                         imageLeftPrev_, imageRightPrev_,
-                         pointsLeftPrev_,
-                         pointsRightPrev_,
-                         pointsLeftCurr_,
-                         pointsRightCurr_)) {
+        auto tic = std::chrono::high_resolution_clock::now();
+        bool odometryOk = vosOdom_.process(deltaTOdom_, averageFlow,
+                                           imageLeftCurr, imageRightCurr,
+                                           imageLeftPrev_, imageRightPrev_,
+                                           pointsLeftPrev_,
+                                           pointsRightPrev_,
+                                           pointsLeftCurr_,
+                                           pointsRightCurr_);
+        auto toc = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diff = toc-tic;
+        voTimes_.push_back(diff.count());
+
+        if (odometryOk) {
 
             framePose_ = framePose_ * deltaTOdom_;
+            frames_.emplace_back(frameIdCurr_, timestamp, framePose_, navData);
             if(optimize_)
             {
-                optimizer.addPose(framePose_, frameIdCurr_, timestamp);
-                optimizer.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
+                optimizer_.addPose(framePose_, frameIdCurr_, timestamp);
+                optimizer_.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
             }
         }
+        // ELSE STATE=TRACK_LOST
     }
     else
     {
         framePose_ = gtsam::Pose3();
+        frames_.emplace_back(frameIdCurr_, timestamp, framePose_, navData);
         if(optimize_)
         {
-            optimizer.addPose(framePose_, frameIdCurr_, timestamp);
+            optimizer_.addPose(framePose_, frameIdCurr_, timestamp);
         }
         state_ = State::Initialized;
     }
@@ -122,16 +136,15 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     if(optimize_)
     {
-        optimizer.optimize();
+        optimizer_.optimize();
         {
             std::unique_lock<std::mutex> lock(mutexPoses_);
-            poses_ = optimizer.getCurrentEstimate();
+            for(unsigned int frameId = 0; frameId < frames_.size(); frameId++)
+            {
+                frames_[frameId].updatePose(optimizer_.getCurrentPoseEstimate(frameId));
+            }
         }
-        framePose_ = poses_.back();
-    }
-    else
-    {
-        poses_.push_back(framePose_);
+        framePose_ = frames_.back().getPose();
     }
 
     // --------------------
@@ -154,6 +167,116 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     {
         imageLeftLoaderThread_.join();
         imageRightLoaderThread_.join();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void System::saveSettings(const std::string& settingsFile)
+{
+    std::fstream f;
+    f.open(settingsFile, std::ios_base::app);
+    if(f.is_open())
+    {
+        f << "////////////////// System Settings //////////////////" << std::endl;
+        f << "optimize: " << (optimize_ ? "true" : "false") << std::endl;
+        f << "closeLoops: " << (closeLoops_ ? "true" : "false") << std::endl;
+        f << "useMapViewer: " << (useMapViewer_ ? "true" : "false") << std::endl;
+        f << "useFrameViewer: " << (useFrameViewer_ ? "true" : "false") << std::endl;
+        f.close();
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open" << settingsFile;
+    }
+}
+
+void System::saveVoTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < voTimes_.size(); i++)
+        {
+            f << i << " " << voTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+}
+
+void System::saveOverallTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < overallTimes_.size(); i++)
+        {
+            f << i << " " << overallTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+}
+
+
+void System::saveLoopTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < loopTimes_.size(); i++)
+        {
+            f << i << " " << loopTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+}
+
+void System::saveOptimizationTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < optimizationTimes_.size(); i++)
+        {
+            f << i << " " << optimizationTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
     }
 }
 
@@ -189,12 +312,38 @@ void System::save()
         saveTrajectoryRpg(groundTruthPath.string(), gtPoses_, timestamps_);
 
         PATH gpsTrackPath = outputDirectoryPath / "traj_lat_lon.txt";
-        optimizer.saveTrajectoryLatLon(gpsTrackPath.string());
+        optimizer_.saveTrajectoryLatLon(gpsTrackPath.string());
 
         PATH bowDatabasePath = outputDirectoryPath / "bow_database.txt";
-        loopDetector.saveDatabase(bowDatabasePath.string());
+        if(closeLoops_)
+        {
+            loopDetector_->saveDatabase(bowDatabasePath.string());
+        }
 
         PATH graphAndValuesPath = outputDirectoryPath / "graph_values.txt";
-        optimizer.saveGraphAndValues(graphAndValuesPath.string());
+        optimizer_.saveGraphAndValues(graphAndValuesPath.string());
+
+        PATH settingsPath = outputDirectoryPath / "settings.txt";
+        this->saveSettings(settingsPath.string());
+        vosOdom_.saveSettings(settingsPath.string());
+        optimizer_.saveSettings(settingsPath.string());
+        if(closeLoops_)
+        {
+            loopDetector_->saveSettings(settingsPath.string());
+        }
+        stereoCamera_.saveSettings(settingsPath.string());
+
+        PATH voTimesPath = outputDirectoryPath / "voTimes.txt";
+        saveVoTimes(voTimesPath.string());
+
+        PATH loopTimesPath = outputDirectoryPath / "loopTimes.txt";
+        saveLoopTimes(loopTimesPath.string());
+
+        PATH overallTimesPath = outputDirectoryPath / "overallTimes.txt";
+        saveOverallTimes(overallTimesPath.string());
+
+        PATH optimizationTimesPath = outputDirectoryPath / "optimizationTimes.txt";
+        saveOptimizationTimes(optimizationTimesPath.string());
+
     }
 }

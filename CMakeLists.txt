@@ -14,15 +14,15 @@ else()
 endif()
 
 # Enable compile optimizations
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 # Enable debug flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3  -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3  -Wall")
 
 message(STATUS "Compiler set to: ${CMAKE_CXX_COMPILER}")
 message(STATUS "Comper flags: ${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 
 find_package(Eigen3 REQUIRED)
 find_package(GTSAM REQUIRED)
@@ -56,6 +56,8 @@ set(sources_visual_odom
         src/gtsamOptimizer.cpp
         src/loopDetector.cpp
         src/orbExtractor.cpp
+        src/frame.cpp
+        #src/keyframe.cpp
         )
 
 

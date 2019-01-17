@@ -2,8 +2,8 @@
 #include "mapDrawer.h"
 #include "easylogging++.h"
 
-MapDrawer::MapDrawer(const std::vector<gtsam::Pose3>& poses, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses)
-: poses_(poses), gtPoses_(gtPoses), mutexPoses_(mutexPoses)
+MapDrawer::MapDrawer(const std::vector<Frame>& frames, const std::vector<gtsam::Pose3>& gtPoses, std::mutex& mutexPoses)
+: frames_(frames), gtPoses_(gtPoses), mutexPoses_(mutexPoses)
 {
 }
 
@@ -110,12 +110,12 @@ void MapDrawer::run()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Skip if there are no poses
-        if(poses_.empty())
+        if(frames_.empty())
         {
             continue;
         }
 
-        Tcw = pangolin::OpenGlMatrix(poses_.back().matrix());
+        Tcw = pangolin::OpenGlMatrix(frames_.back().getPose().matrix());
         if(menuFollowCamera && bFollow)
         {
             s_cam.Follow(Tcw);
@@ -145,13 +145,13 @@ void MapDrawer::run()
         while(true)
         {
             std::unique_lock<std::mutex> lockGtsam(mutexPoses_);
-            if(i >= poses_.size())
+            if(i >= frames_.size())
             {
                 break;
             }
 
-            T1Gtsam    = pangolin::OpenGlMatrix(poses_.at(i - 1).matrix());
-            T2Gtsam    = pangolin::OpenGlMatrix(poses_.at(i).matrix());
+            T1Gtsam    = pangolin::OpenGlMatrix(frames_.at(i - 1).getPose().matrix());
+            T2Gtsam    = pangolin::OpenGlMatrix(frames_.at(i).getPose().matrix());
             lockGtsam.unlock();
             if(i == 1)
             {

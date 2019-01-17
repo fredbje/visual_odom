@@ -445,3 +445,68 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
             pointsLeftPrev, pointsRightPrev, pointsLeftCurr, pointsRightCurr);
 }
 
+void VisualOdometryStereo::saveSettings(const std::string& settingsFile)
+{
+    std::fstream f;
+    f.open(settingsFile, std::ios_base::app);
+    if(f.is_open())
+    {
+        f << "////////////////// System Settings //////////////////" << std::endl;
+
+        f << "\t////////////////// Settings for Key Frame Decision //////////////////" << std::endl;
+        f << "\topticalFlowThreshold: " << opticalFlowThreshold << std::endl;
+
+        f << "\t////////////////// Settings for solvePnpRansac //////////////////" << std::endl;
+        f << "\titerationsCount: " << iterationsCount_ << std::endl;
+        f << "\treprojectionError: " << reprojectionError_ << std::endl;
+        f << "\tconfidence: " << confidence_ << std::endl;
+        f << "\tuseExtrinsicGuess: " << (useExtrinsicGuess_ ? "true" : "false") << std::endl;
+
+        f << "\tflags: ";
+        switch (flags_)
+        {
+            case cv::SOLVEPNP_ITERATIVE:
+                f << "SOLVEPNP_ITERATIVE";
+                break;
+            case cv::SOLVEPNP_EPNP:
+                f << "SOLVEPNP_EPNP";
+                break;
+            case cv::SOLVEPNP_AP3P:
+                f << "SOLVEPNP_AP3P";
+                break;
+            case cv::SOLVEPNP_DLS:
+                f << "SOLVEPNP_DLS";
+                break;
+            case cv::SOLVEPNP_UPNP:
+                f << "SOLVEPNP_UPNP";
+                break;
+            case cv::SOLVEPNP_P3P:
+                f << "SOLVEPNP_P3P";
+                break;
+        }
+        f << std::endl;
+
+        f << "\t////////////////// Settings for Bucketing //////////////////" << std::endl;
+        f << "\tbucketSize: " << bucketSize_ << std::endl;
+        f << "\tfeaturesPerBucket: " << featuresPerBucket_ << std::endl;
+
+        f << "\t////////////////// Settings for FAST Detector //////////////////" << std::endl;
+        f << "\tfastThreshold: " << fastThreshold_ << std::endl;
+        f << "\tnonmaxSuppression: " << (nonmaxSuppression_ ? "true" : "false") << std::endl;
+
+        f << "\t////////////////// Settings for 5pt algorithm //////////////////" << std::endl;
+        f << "\testimateRotation5pt: " << (estimateRotation5Pt_ ? "true" : "false") << std::endl;
+
+        f << "\t////////////////// Settings for Circular Matching //////////////////" << std::endl;
+        f << "\tcuraCircularMatching: " << (cudaCircularMatching_ ? "true" : "false") << std::endl;
+        f << "\twinSize: " << winSize_ << std::endl;
+        f << "\tmaxLevel: " << maxLevel_ << std::endl;
+        f << "\tminEigThreshold: " << minEigThreshold_ << std::endl;
+        f << "\topticalFlowIters: " << opticalFlowIters_ << std::endl;
+        f.close();
+    }
+    else
+    {
+        LOG(ERROR) << "VisualOdometryStereo could not open " << settingsFile;
+    }
+}

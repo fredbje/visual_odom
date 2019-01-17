@@ -8,3 +8,6 @@ LICENSE
 
 vocabulary/
 output/
+CMakeLists.txt.user
+build-apps-Desktop-Debug/
+build-visual_odom-Desktop-Default/

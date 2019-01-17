@@ -14,6 +14,7 @@ public:
     OrbExtractor();
     ~OrbExtractor();
     void operator()(const cv::Mat &im, std::vector<cv::KeyPoint> &keys, std::vector<DBoW2::FORB::TDescriptor> &descriptors) const;
+    void saveSettings(const std::string& settingsFile);
 private:
     // ----------------
     // Settings for ORB

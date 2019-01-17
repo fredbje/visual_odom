@@ -53,6 +53,8 @@ public:
 
     void appendNewFeatures(const cv::Mat& image, FeatureSet& currentFeatures);
 
+    void saveSettings(const std::string& settingsFile);
+
 private:
     void removeInvalidPoints(std::vector<cv::Point2f>& points, const std::vector<bool>& status);
     void checkValidMatch(std::vector<cv::Point2f>& points, std::vector<cv::Point2f>& pointsReturn, std::vector<bool>& status);

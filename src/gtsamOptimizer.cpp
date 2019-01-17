@@ -46,7 +46,7 @@ GtsamOptimizer::GtsamOptimizer(const StereoCamera& stereoCamera, const gtsam::Po
 }
 
 GtsamOptimizer::~GtsamOptimizer() {
-    std::cout << "GtsamOptimizer destructor called." << std::endl;
+    LOG(INFO) << "GtsamOptimizer destructor called.";
 }
 
 
@@ -105,7 +105,7 @@ void GtsamOptimizer::optimize()
     mNewValues.clear();
 }
 
-std::vector<gtsam::Pose3> GtsamOptimizer::getCurrentEstimate()
+std::vector<gtsam::Pose3> GtsamOptimizer::getCurrentTrajectoryEstimate()
 {
     std::vector<gtsam::Pose3> poses;
     for(const auto& poseId : poseIds_) {
@@ -113,6 +113,11 @@ std::vector<gtsam::Pose3> GtsamOptimizer::getCurrentEstimate()
         poses.emplace_back(tempPose);
     }
     return poses;
+}
+
+gtsam::Pose3 GtsamOptimizer::getCurrentPoseEstimate(unsigned int frameId)
+{
+    return mCurrentEstimate.at<gtsam::Pose3>(gtsam::Symbol('x', frameId));
 }
 
 void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
@@ -131,4 +136,18 @@ void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
 void GtsamOptimizer::saveGraphAndValues(const std::string& outputFile)
 {
     gtsam::writeG2o(mIsam.getFactorsUnsafe(), mCurrentEstimate, outputFile);
+}
+
+void GtsamOptimizer::saveSettings(const std::string& settingsFile)
+{
+    std::fstream f;
+    f.open(settingsFile, std::ios_base::app);
+    if(f.is_open())
+    {
+        f << "////////////////// GtsamOptimizer Settings //////////////////" << std::endl;
+    }
+    else
+    {
+        LOG(ERROR) << "GtsamOptimizer could not open " << settingsFile;
+    }
 }

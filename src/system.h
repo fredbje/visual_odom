@@ -9,6 +9,7 @@
 #include "stereocamera.h"
 #include "gtsamOptimizer.h"
 #include "loopDetector.h"
+#include "frame.h"
 
 class System
 {
@@ -18,6 +19,16 @@ public:
     ~System();
 
     void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const oxts& navData, const double& timestamp);
+
+    void saveSettings(const std::string& settingsPath);
+
+    void saveVoTimes(const std::string& outfile);
+
+    void saveOverallTimes(const std::string& outFile);
+
+    void saveLoopTimes(const std::string& outFile);
+
+    void saveOptimizationTimes(const std::string& outFile);
 
     void save();
 
@@ -31,7 +42,7 @@ private:
     // -----------------------
     // Settings
     // -----------------------
-    bool optimize_ = false;
+    bool optimize_ = true;
     bool closeLoops_ = true;
     bool useMapViewer_ = true;
     bool useFrameViewer_ = true;
@@ -48,8 +59,9 @@ private:
     gtsam::Pose3 deltaTMatch_;
     std::vector<gtsam::Pose3> poses_;
     std::vector<gtsam::Pose3> gtPoses_;
+    std::vector<Frame> frames_;
 
-    std::vector< cv::Point2f > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;   //vectors to store the coordinates of the feature points
+    std::vector< cv::Point2f > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;
 
     std::vector<double> timestamps_;
 
@@ -61,15 +73,21 @@ private:
     MapDrawer mapDrawer_;
     std::thread mapDrawerThread_;
 
-    GtsamOptimizer optimizer;
+    GtsamOptimizer optimizer_;
 
     DLoopDetector::DetectionResult loopResult_;
-    LoopDetector loopDetector;
+    LoopDetector* loopDetector_;
     unsigned int numLoops_;
 
     State state_;
 
     std::mutex mutexPoses_;
+
+    std::vector<float> voTimes_;
+    std::vector<float> loopTimes_;
+    std::vector<float> optimizationTimes_;
+    std::vector<float> overallTimes_;
+
 
 };
 
