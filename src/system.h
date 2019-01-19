@@ -20,6 +20,20 @@ public:
 
     void process(const cv::Mat& imageLeft, const cv::Mat& imageRight, const oxts& navData, const double& timestamp);
 
+    void save();
+
+    enum class State
+    {
+        WaitingForFirstImage,
+        Initialized
+    };
+
+private:
+
+    void updatePoses();
+
+    void addOdometryConstraint(const double& timestamp, const oxts& navData);
+
     void saveSettings(const std::string& settingsPath);
 
     void saveVoTimes(const std::string& outfile);
@@ -29,14 +43,6 @@ public:
     void saveLoopTimes(const std::string& outFile);
 
     void saveOptimizationTimes(const std::string& outFile);
-
-    void save();
-
-    enum class State
-    {
-        WaitingForFirstImage,
-        Initialized
-    };
 
 private:
     // -----------------------
@@ -51,6 +57,7 @@ private:
 
     cv::Mat imageLeftPrev_, imageRightPrev_;
     cv::Mat imageLeftMatch_, imageRightMatch_;
+    std::thread tLoopDetection_;
     std::thread imageLeftLoaderThread_;
     std::thread imageRightLoaderThread_;
 
@@ -65,8 +72,8 @@ private:
 
     std::vector<double> timestamps_;
 
-    unsigned int frameIdCurr_, frameIdPrev_;
-    int frameIdMatch_;
+    //unsigned int frameIdCurr_, frameIdPrev_;
+
 
     VisualOdometryStereo vosOdom_;
     VisualOdometryStereo vosLoop_;
@@ -75,7 +82,7 @@ private:
 
     GtsamOptimizer optimizer_;
 
-    DLoopDetector::DetectionResult loopResult_;
+    DLoopDetector::DetectionResult loopResultCurr_, loopResultPrev_;
     LoopDetector* loopDetector_;
     unsigned int numLoops_;
 

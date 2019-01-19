@@ -13,7 +13,7 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightPrev_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageLeftMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
-        frameIdCurr_(0), frameIdPrev_(0), frameIdMatch_(-1),
+        //frameIdCurr_(0), frameIdPrev_(0),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
         mapDrawer_(frames_, gtPoses_, mutexPoses_),
         optimizer_(stereoCamera_, imuTcam),
@@ -57,22 +57,54 @@ System::~System()
     }
 }
 
+void System::updatePoses()
+{
+    {
+        std::unique_lock<std::mutex> lock(mutexPoses_);
+        for(auto& frame : frames_)//(unsigned int frameId = 0; frameId < frames_.size(); frameId++)
+        {
+            //frames_[frameId].updatePose(optimizer_.getCurrentPoseEstimate(frameId));
+            frame.updatePose(optimizer_.getCurrentPoseEstimate(frame.getFrameId()));
+        }
+    }
+    framePose_ = frames_.back().getPose();
+}
+
+void System::addOdometryConstraint(const double& timestamp, const oxts& navData)
+{
+    framePose_ = framePose_ * deltaTOdom_;
+    unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
+    unsigned int frameIdPrev = frameIdCurr - 1;
+    frames_.emplace_back(frameIdCurr, timestamp, framePose_, navData);
+    if(optimize_)
+    {
+        optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+        optimizer_.addRelativePoseConstraint(deltaTOdom_, frameIdPrev, frameIdCurr, false);
+    }
+}
+
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
 
-    if(closeLoops_ && frameIdMatch_ >= 0)
+    if(closeLoops_ && loopResultPrev_.detection())
     {
         float averageFlow;
-        if(vosLoop_.process(deltaTMatch_, averageFlow, imageLeftMatch_, imageRightMatch_, imageLeftPrev_, imageRightPrev_))
+        bool loopClosureOk = vosLoop_.process(deltaTMatch_,
+                                              averageFlow,
+                                              imageLeftMatch_,
+                                              imageRightMatch_,
+                                              imageLeftPrev_,
+                                              imageRightPrev_);
+        if(loopClosureOk)
         {
-            optimizer_.addRelativePoseConstraint(deltaTMatch_, frameIdPrev_, frameIdMatch_, true);
+            unsigned int frameIdPrev = static_cast<unsigned int>(frames_.size() - 1);
+            optimizer_.addRelativePoseConstraint(deltaTMatch_, frameIdPrev, loopResultPrev_.match, true);
         }
     }
 
-    std::thread tLoopDetection;
     if(closeLoops_)
     {
-        tLoopDetection = std::thread(&LoopDetector::process, loopDetector_, imageLeftCurr, std::ref(loopResult_));
+        tLoopDetection_ = std::thread(&LoopDetector::process, loopDetector_, imageLeftCurr, std::ref(loopResultCurr_));
     }
 
     if(state_ == State::Initialized)
@@ -92,42 +124,32 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         std::chrono::duration<float> diff = toc-tic;
         voTimes_.push_back(diff.count());
 
-        if (odometryOk) {
-
-            framePose_ = framePose_ * deltaTOdom_;
-            frames_.emplace_back(frameIdCurr_, timestamp, framePose_, navData);
-            if(optimize_)
-            {
-                optimizer_.addPose(framePose_, frameIdCurr_, timestamp);
-                optimizer_.addRelativePoseConstraint(deltaTOdom_, frameIdPrev_, frameIdCurr_, false);
-            }
+        if (odometryOk)
+        {
+            addOdometryConstraint(timestamp, navData);
         }
         // ELSE STATE=TRACK_LOST
     }
     else
     {
         framePose_ = gtsam::Pose3();
-        frames_.emplace_back(frameIdCurr_, timestamp, framePose_, navData);
+        unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
+        frames_.emplace_back(frameIdCurr, timestamp, framePose_, navData);
         if(optimize_)
         {
-            optimizer_.addPose(framePose_, frameIdCurr_, timestamp);
+            optimizer_.addPose(framePose_, frameIdCurr, timestamp);
         }
         state_ = State::Initialized;
     }
 
     if(closeLoops_)
     {
-        tLoopDetection.join();
-        if(loopResult_.detection())
+        tLoopDetection_.join();
+        if(loopResultCurr_.detection())
         {
-            frameIdMatch_ = loopResult_.match;
-            imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), frameIdMatch_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
-            imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), frameIdMatch_, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
             numLoops_++;
-        }
-        else
-        {
-            frameIdMatch_ = -1;
         }
         LOG(DEBUG) << "Loops detected so far: " << numLoops_;
     }
@@ -137,14 +159,7 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     if(optimize_)
     {
         optimizer_.optimize();
-        {
-            std::unique_lock<std::mutex> lock(mutexPoses_);
-            for(unsigned int frameId = 0; frameId < frames_.size(); frameId++)
-            {
-                frames_[frameId].updatePose(optimizer_.getCurrentPoseEstimate(frameId));
-            }
-        }
-        framePose_ = frames_.back().getPose();
+        updatePoses();
     }
 
     // --------------------
@@ -160,14 +175,16 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
     // -----------------------------------------
     imageLeftPrev_ = imageLeftCurr;
     imageRightPrev_ = imageRightCurr;
-    frameIdPrev_ = frameIdCurr_;
-    frameIdCurr_++;
 
-    if(closeLoops_ && frameIdMatch_ >= 0)
+    //frameIdPrev_ = frameIdCurr_;
+    //frameIdCurr_++;
+
+    if(closeLoops_ && loopResultCurr_.detection())
     {
         imageLeftLoaderThread_.join();
         imageRightLoaderThread_.join();
     }
+    loopResultPrev_ = loopResultCurr_;
 }
 
 
