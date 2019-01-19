@@ -61,31 +61,50 @@ void System::updatePoses()
 {
     {
         std::unique_lock<std::mutex> lock(mutexPoses_);
+        gtsam::Pose3 refFrame;
         for(auto& frame : frames_)//(unsigned int frameId = 0; frameId < frames_.size(); frameId++)
         {
             //frames_[frameId].updatePose(optimizer_.getCurrentPoseEstimate(frameId));
-            frame.updatePose(optimizer_.getCurrentPoseEstimate(frame.getFrameId()));
+            if(frame.isRef())
+            {
+                refFrame = frame.getPose();
+                frame.updatePose(optimizer_.getCurrentPoseEstimate(frame.getFrameId()));
+            }
+            else
+            {
+                gtsam::Pose3 pose = refFrame * frame.getPose2Ref();
+                frame.updatePose(pose);
+            }
         }
     }
     framePose_ = frames_.back().getPose();
 }
 
-void System::addOdometryConstraint(const double& timestamp, const oxts& navData)
+void System::addOdometryConstraint(const double& timestamp, const oxts& navData, const float& averageFlow)
 {
+    bool isRefFrame = averageFlow > 15.f;
+
     framePose_ = framePose_ * deltaTOdom_;
+    pose2Ref_ = pose2Ref_ * deltaTOdom_;
+
     unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
-    unsigned int frameIdPrev = frameIdCurr - 1;
-    frames_.emplace_back(frameIdCurr, timestamp, framePose_, navData);
-    if(optimize_)
+    unsigned int refFrameId = frames_.back().getRefFrameId();
+    if(isRefFrame)
     {
-        optimizer_.addPose(framePose_, frameIdCurr, timestamp);
-        optimizer_.addRelativePoseConstraint(deltaTOdom_, frameIdPrev, frameIdCurr, false);
+        if(optimize_)
+        {
+            optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+            optimizer_.addRelativePoseConstraint(pose2Ref_, refFrameId, frameIdCurr, false);
+        }
+        pose2Ref_ = gtsam::Pose3();
+        refFrameId = frameIdCurr;
     }
+
+    frames_.emplace_back(frameIdCurr, refFrameId, timestamp, framePose_, pose2Ref_, navData, isRefFrame);
 }
 
-void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
+void System::addLoopClosureConstraint()
 {
-
     if(closeLoops_ && loopResultPrev_.detection())
     {
         float averageFlow;
@@ -101,6 +120,11 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
             optimizer_.addRelativePoseConstraint(deltaTMatch_, frameIdPrev, loopResultPrev_.match, true);
         }
     }
+}
+
+void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
+{
+    addLoopClosureConstraint();
 
     if(closeLoops_)
     {
@@ -120,21 +144,23 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                                            pointsRightPrev_,
                                            pointsLeftCurr_,
                                            pointsRightCurr_);
+
         auto toc = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> diff = toc-tic;
         voTimes_.push_back(diff.count());
 
         if (odometryOk)
         {
-            addOdometryConstraint(timestamp, navData);
+            addOdometryConstraint(timestamp, navData, averageFlow);
         }
         // ELSE STATE=TRACK_LOST
     }
     else
     {
         framePose_ = gtsam::Pose3();
+        pose2Ref_ = gtsam::Pose3();
         unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
-        frames_.emplace_back(frameIdCurr, timestamp, framePose_, navData);
+        frames_.emplace_back(frameIdCurr, frameIdCurr, timestamp, framePose_, pose2Ref_, navData, true);
         if(optimize_)
         {
             optimizer_.addPose(framePose_, frameIdCurr, timestamp);

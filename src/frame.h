@@ -11,11 +11,12 @@ class Frame
 {
 public:
     Frame(const unsigned int& frameId,
+          const unsigned int& refFrameId,
           const double& timestamp,
           const gtsam::Pose3& pose,
-          //const gtsam::Pose3& pose2Ref,
-          const oxts& navData
-          //bool isRef
+          const gtsam::Pose3& pose2Ref,
+          const oxts& navData,
+          bool isRef
           );
 
     void updatePose(gtsam::Pose3 pose);
@@ -24,17 +25,22 @@ public:
 
     unsigned int getFrameId() const;
 
-    //const gtsam::Pose3& getPose2Ref() const;
+    unsigned int getRefFrameId() const;
+
+    const gtsam::Pose3& getPose2Ref() const;
+
+    bool isRef() const;
 
     //void setReferenceKeyFrame(const KeyFrame& referenceKeyFrame);
 
 private:
     unsigned int frameId_;
+    unsigned int refFrameId_;
     double timestamp_;
     gtsam::Pose3 pose_;
-    //const gtsam::Pose3 pose2Ref_;
+    const gtsam::Pose3 pose2Ref_;
     const oxts navData_;
-    //bool isRef_;
+    bool isRef_;
 
 
     //    bool isKeyframe_;

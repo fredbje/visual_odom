@@ -150,15 +150,34 @@ void MapDrawer::run()
                 break;
             }
 
+            bool isT1Ref = frames_.at(i - 1).isRef();
+            bool isT2Ref = frames_.at(i - 1).isRef();
+
             T1Gtsam    = pangolin::OpenGlMatrix(frames_.at(i - 1).getPose().matrix());
             T2Gtsam    = pangolin::OpenGlMatrix(frames_.at(i).getPose().matrix());
             lockGtsam.unlock();
             if(i == 1)
             {
-                drawCamera(T1Gtsam, green);
+                drawCamera(T1Gtsam, blue);
             }
-            drawCamera(T2Gtsam, green);
-            drawLines(T1Gtsam, T2Gtsam, green);
+
+            if(isT2Ref)
+            {
+                drawCamera(T2Gtsam, blue);
+            }
+            else
+            {
+                drawCamera(T2Gtsam, green);
+            }
+
+            if(isT1Ref)
+            {
+                drawLines(T1Gtsam, T2Gtsam, blue);
+            }
+            else
+            {
+                drawLines(T1Gtsam, T2Gtsam, green);
+            }
 
             if(!gtPoses_.empty() && menuShowGt)
             {

@@ -32,7 +32,9 @@ private:
 
     void updatePoses();
 
-    void addOdometryConstraint(const double& timestamp, const oxts& navData);
+    void addOdometryConstraint(const double& timestamp, const oxts& navData, const float& averageFlow);
+
+    void addLoopClosureConstraint();
 
     void saveSettings(const std::string& settingsPath);
 
@@ -62,6 +64,7 @@ private:
     std::thread imageRightLoaderThread_;
 
     gtsam::Pose3 framePose_;
+    gtsam::Pose3 pose2Ref_;
     gtsam::Pose3 deltaTOdom_;
     gtsam::Pose3 deltaTMatch_;
     std::vector<gtsam::Pose3> poses_;
