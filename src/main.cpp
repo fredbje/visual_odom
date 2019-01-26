@@ -70,7 +70,16 @@ int main(int /*argc*/, char** /* argv*/)
     for (unsigned int frameId = frameIdInitial; frameId <= frameIdFinal; frameId++)
     {
         clock_t tic = clock();
-        loadImages(imageLeft, imageRight, imageFileNamesLeft[frameId], imageFileNamesRight[frameId]);
+        if(frameId == 1000)
+        {
+            imageLeft = cv::Mat::zeros(imageLeft.rows, imageLeft.cols, imageLeft.type());
+            imageRight = cv::Mat::zeros(imageRight.rows, imageRight.cols, imageRight.type());
+        }
+        else
+        {
+            loadImages(imageLeft, imageRight, imageFileNamesLeft[frameId], imageFileNamesRight[frameId]);
+        }
+
 
         SLAM.process(imageLeft, imageRight, oxtsData[frameId], timestamps[frameId]);
 

@@ -24,12 +24,13 @@ public:
 
     enum class State
     {
-        TrackLost,
-        WaitingForFirstImage,
+        Uninitialized,
         Initialized
     };
 
 private:
+
+    void initialize(const double& timestamp, const oxts& navData);
 
     void updatePoses();
 

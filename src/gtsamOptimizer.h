@@ -20,15 +20,28 @@
 
 #include "oxts.h"
 #include "matrixutils.h"
-//#include "loopDetector.h"
-#include "stereocamera.h"
-
-#include "stereocamera.h"
 
 class GtsamOptimizer {
+private:
+    struct Graph
+    {
+        gtsam::ISAM2 iSAM2_;
+        gtsam::Values currentEstimate_;
+        gtsam::FastVector<size_t> factorsToRemove_;
+
+        bool firstPoseInitialized_ = false;
+        bool trajectoryInitializedInGlobalFrame_ = false;
+        std::vector<unsigned int> poseIds_;
+        std::vector<double> timestamps_;
+        gtsam::NonlinearFactorGraph newFactors_;
+        gtsam::Values newValues_;
+        std::vector<std::pair<unsigned int, gtsam::Point3>> gpsMeasurementBuffer_;
+
+        Graph(gtsam::ISAM2 iSAM2) : iSAM2_(iSAM2) {}
+    };
 public:
 
-    GtsamOptimizer(const StereoCamera& stereoCamera, const gtsam::Pose3& imu_T_cam);
+    GtsamOptimizer(const gtsam::Pose3& imu_T_cam);
 
     ~GtsamOptimizer();
 
@@ -46,12 +59,8 @@ public:
 
     gtsam::Pose3 getCurrentPoseEstimate(unsigned int frameId);
 
-    // From the matched feature pair to previous and current sterepoints
-    /*
-    void getMatchedPairs(const libviso2::Matcher::p_match &match,
-                      gtsam::StereoPoint2 &p1,
-                      gtsam::StereoPoint2 &p2);
-    */
+    void setTrackLost();
+
     void saveTrajectoryLatLon(const std::string& outputFile);
 
     void saveGraphAndValues(const std::string& outputFile);
@@ -59,6 +68,13 @@ public:
     void loadGraphAndValues(const std::string& inputFile);
 
     void saveSettings(const std::string& settingsFile);
+
+private:
+    bool isGpsBufferDiverse(const std::vector<std::pair<unsigned int, gtsam::Point3>>& gpsMeasurementBuffer);
+
+    void insertGpsBufferInGraph(Graph& graph, unsigned int& switchIdGps);
+
+    unsigned int getGraphIdFromFrameId(unsigned int frameId);
 
 private:
     // --------
@@ -103,30 +119,17 @@ private:
     gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.3), gtsam::Vector3::Constant(1.0)).finished());
     gtsam::noiseModel::Diagonal::shared_ptr switchPriorNoise_ = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(1.0));
 
-    gtsam::ISAM2 iSAM2_ = gtsam::ISAM2(iSAM2Params_);
 
-    StereoCamera stereoCamera_;
 
     std::vector<unsigned int> poseIds_;
     std::vector<double> timestamps_;
-    //size_t mPoseId, mLandmarkId, mSwitchId;
 
+    unsigned int currentGraphId_;
 
-    gtsam::StereoCamera mStereoCamera;
+    std::vector<Graph> graphs_;
 
-    gtsam::NonlinearFactorGraph mNewFactors;
-    gtsam::Values mNewValues;
-    gtsam::Values mCurrentEstimate;
-
-    bool localOriginSet_;
-    bool firstPoseInitialized_;
-    bool trajectoryInitializedInGlobalFrame_;
-
-    gtsam::FastVector<size_t> factorsToRemove_;
-
-    std::vector<std::pair<unsigned int, gtsam::Point3>> gpsMeasurementBuffer_;
-
-    //GeographicLib::Geocentric earth(GeographicLib::Constants::WGS84_a(), GeographicLib::Constants::WGS84_f());
+    bool localOriginSet_ = false;
     GeographicLib::LocalCartesian enuProjection_;
+
 };
 #endif // GTSAM_OPTIMIZER_H

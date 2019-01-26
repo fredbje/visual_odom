@@ -15,9 +15,9 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
         mapDrawer_(frames_, gtPoses_, mutexPoses_),
-        optimizer_(stereoCamera_, imuTcam),
+        optimizer_(imuTcam),
         numLoops_(0),
-        state_(State::WaitingForFirstImage)
+        state_(State::Uninitialized)
 {
     if(closeLoops_ && !optimize_)
     {
@@ -54,6 +54,28 @@ System::~System()
     {
         delete loopDetector_;
     }
+}
+
+void System::initialize(const double& timestamp, const oxts& navData)
+{
+    optimizer_.setTrackLost();
+
+    framePose_ = gtsam::Pose3();
+    pose2Ref_ = gtsam::Pose3();
+    unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
+    frames_.emplace_back(frameIdCurr, frameIdCurr, timestamp, framePose_, pose2Ref_, navData, true);
+    if(optimize_)
+    {
+        if(useGps_)
+        {
+            optimizer_.addPose(framePose_, frameIdCurr, timestamp, navData);
+        }
+        else
+        {
+            optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+        }
+    }
+    state_ = State::Initialized;
 }
 
 void System::updatePoses()
@@ -169,27 +191,12 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         }
         else
         {
-            state_ = State::TrackLost;
+            initialize(timestamp, navData);
         }
     }
     else
     {
-        framePose_ = gtsam::Pose3();
-        pose2Ref_ = gtsam::Pose3();
-        unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
-        frames_.emplace_back(frameIdCurr, frameIdCurr, timestamp, framePose_, pose2Ref_, navData, true);
-        if(optimize_)
-        {
-            if(useGps_)
-            {
-                optimizer_.addPose(framePose_, frameIdCurr, timestamp, navData);
-            }
-            else
-            {
-                optimizer_.addPose(framePose_, frameIdCurr, timestamp);
-            }
-        }
-        state_ = State::Initialized;
+        initialize(timestamp, navData);
     }
 
     if(closeLoops_)

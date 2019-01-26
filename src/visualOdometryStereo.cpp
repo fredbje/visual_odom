@@ -80,7 +80,7 @@ void VisualOdometryStereo::deleteUnmatchFeaturesCircle(std::vector<cv::Point2f>&
         age += 1;
     }
 
-    int indexCorrection = 0;
+    unsigned int indexCorrection = 0;
     for( unsigned int i = 0; i < status3.size(); i++)
     {
         assert( (i - indexCorrection) >= 0 );
