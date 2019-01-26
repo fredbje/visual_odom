@@ -17,8 +17,8 @@ void MapDrawer::drawCamera(pangolin::OpenGlMatrix &Twc, Color color)
     float CameraSize = 0.5;
     float mCameraLineWidth = 1;
     const float &w = CameraSize;
-    const auto h = (float)(w*0.75);
-    const auto z = (float)(w*0.6);
+    const auto h = w*0.75f;
+    const auto z = w*0.6f;
 
     glPushMatrix();
     glMultMatrixd(Twc.m);
@@ -83,7 +83,9 @@ void MapDrawer::run()
 
     pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(175));
     pangolin::Var<bool> menuFollowCamera("menu.Follow Camera",true,true);
-    pangolin::Var<bool> menuShowGt("menu.Show Ground Truth", true, true);
+    pangolin::Var<bool>* menuShowGt;
+    if(!gtPoses_.empty())
+        menuShowGt = new pangolin::Var<bool>("menu.Show Ground Truth", true, true);
 
     // Define Camera Render Object (for view / scene browsing)
     pangolin::OpenGlRenderState s_cam(
@@ -94,7 +96,7 @@ void MapDrawer::run()
     // Add named OpenGL viewport to window and provide 3D Handler
     auto *handler3D = new pangolin::Handler3D(s_cam);
     pangolin::View& d_cam = pangolin::CreateDisplay()
-            .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0f/768.0f)
+            .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0/768.0)
             .SetHandler(handler3D);
 
     // Matrix that changes where the camera is
@@ -179,7 +181,7 @@ void MapDrawer::run()
                 drawLines(T1Gtsam, T2Gtsam, green);
             }
 
-            if(!gtPoses_.empty() && menuShowGt)
+            if(!gtPoses_.empty() && *menuShowGt)
             {
                 T1Gt = pangolin::OpenGlMatrix(gtPoses_.at(i - 1).matrix());
                 T2Gt = pangolin::OpenGlMatrix(gtPoses_.at(i).matrix());
@@ -203,6 +205,8 @@ void MapDrawer::run()
     }
     pangolin::DestroyWindow("Pose Viewer");
     delete handler3D;
+    if(menuShowGt != nullptr)
+        delete menuShowGt;
     LOG(INFO) << "Exiting MapDrawer thread.";
 }
 
@@ -225,8 +229,8 @@ void MapDrawer::drawLines(pangolin::OpenGlMatrix T1, pangolin::OpenGlMatrix T2, 
     }
 
     glBegin(GL_LINES);
-    glVertex3f((float) T1.m[12], (float) T1.m[13], (float) T1.m[14]);
-    glVertex3f((float) T2.m[12], (float) T2.m[13], (float) T2.m[14]);
+    glVertex3f(static_cast<float>(T1.m[12]), static_cast<float>(T1.m[13]), static_cast<float>(T1.m[14]));
+    glVertex3f(static_cast<float>(T2.m[12]), static_cast<float>(T2.m[13]), static_cast<float>(T2.m[14]));
     glEnd();
 }
 

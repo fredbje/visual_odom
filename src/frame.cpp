@@ -13,7 +13,7 @@ Frame::Frame(const unsigned int& frameId,
 
 }
 
-void Frame::updatePose(gtsam::Pose3 pose)
+void Frame::setPose(gtsam::Pose3 pose)
 {
     pose_ = pose;
 }
@@ -33,9 +33,19 @@ unsigned int Frame::getRefFrameId() const
     return refFrameId_;
 }
 
+void Frame::setRefFrameId(unsigned int refFrameId)
+{
+    refFrameId_ = refFrameId;
+}
+
 const gtsam::Pose3& Frame::getPose2Ref() const
 {
     return pose2Ref_;
+}
+
+void Frame::setPose2Ref(gtsam::Pose3 pose2Ref)
+{
+    pose2Ref_ = pose2Ref;
 }
 
 bool Frame::isRef() const

@@ -19,7 +19,7 @@ public:
           bool isRef
           );
 
-    void updatePose(gtsam::Pose3 pose);
+    void setPose(gtsam::Pose3 pose);
 
     const gtsam::Pose3& getPose() const;
 
@@ -27,7 +27,11 @@ public:
 
     unsigned int getRefFrameId() const;
 
+    void setRefFrameId(unsigned int refFrameId);
+
     const gtsam::Pose3& getPose2Ref() const;
+
+    void setPose2Ref(gtsam::Pose3 pose2Ref);
 
     bool isRef() const;
 
@@ -38,7 +42,7 @@ private:
     unsigned int refFrameId_;
     double timestamp_;
     gtsam::Pose3 pose_;
-    const gtsam::Pose3 pose2Ref_;
+    gtsam::Pose3 pose2Ref_;
     const oxts navData_;
     bool isRef_;
 

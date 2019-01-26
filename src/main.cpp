@@ -6,19 +6,8 @@
 
 INITIALIZE_EASYLOGGINGPP
 
-int main(int argc, char **argv)
+int main(int /*argc*/, char** /* argv*/)
 {
-    // Settings file
-    std::string strSettingPath = std::string(argv[1]);
-    LOG(INFO) << "Calibration Filepath: " << strSettingPath;
-
-    cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-
-    if(!fSettings.isOpened())
-    {
-        LOG(ERROR) << "Could not open settings file";
-    }
-
     std::string sequenceDirectory = "/home/fbjerkas/datasets/kitti-gray/sequences/00";
     std::string timestampsFile = "/home/fbjerkas/datasets/kitti-gray/sequences/00/times.txt";
     std::string gtPosesFile = "/home/fbjerkas/datasets/kitti-poses/dataset/poses/00.txt";
@@ -26,6 +15,13 @@ int main(int argc, char **argv)
     std::string cam2ImuCalibrationFile = "/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_cam_to_imu.txt";
     std::string vocabularyFile = "/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt";
     std::string logSettingsFile = "/home/fbjerkas/src/visual_odom/configurations/easylogging.conf";
+    std::string strSettingPath = "/home/fbjerkas/src/visual_odom/configurations/kitti00.yaml";
+    cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
+
+    if(!fSettings.isOpened())
+    {
+        LOG(ERROR) << "Could not open settings file at " << strSettingPath;
+    }
 
     el::Loggers::configureFromGlobal(logSettingsFile.c_str());
 
@@ -68,7 +64,7 @@ int main(int argc, char **argv)
     System SLAM(fSettings, vocabularyFile, imu_T_cam, gtPoses);
     cv::Mat imageLeft, imageRight;
     unsigned int frameIdInitial = 0;
-    unsigned int frameIdFinal = imageFileNamesLeft.size() - 1;
+    unsigned long frameIdFinal = imageFileNamesLeft.size() - 1;
     float avgFps, currFps;
     clock_t firstTic = clock();
     for (unsigned int frameId = frameIdInitial; frameId <= frameIdFinal; frameId++)

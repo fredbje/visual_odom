@@ -13,7 +13,6 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightPrev_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageLeftMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
-        //frameIdCurr_(0), frameIdPrev_(0),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
         mapDrawer_(frames_, gtPoses_, mutexPoses_),
         optimizer_(stereoCamera_, imuTcam),
@@ -62,30 +61,29 @@ void System::updatePoses()
     {
         std::unique_lock<std::mutex> lock(mutexPoses_);
         gtsam::Pose3 refFrame;
-        for(auto& frame : frames_)//(unsigned int frameId = 0; frameId < frames_.size(); frameId++)
+        for(auto& frame : frames_)
         {
-            //frames_[frameId].updatePose(optimizer_.getCurrentPoseEstimate(frameId));
             if(frame.isRef())
             {
                 refFrame = frame.getPose();
-                frame.updatePose(optimizer_.getCurrentPoseEstimate(frame.getFrameId()));
+                frame.setPose(optimizer_.getCurrentPoseEstimate(frame.getFrameId()));
             }
             else
             {
                 gtsam::Pose3 pose = refFrame * frame.getPose2Ref();
-                frame.updatePose(pose);
+                frame.setPose(pose);
             }
         }
     }
     framePose_ = frames_.back().getPose();
 }
 
-void System::addOdometryConstraint(const double& timestamp, const oxts& navData, const float& averageFlow)
+void System::addOdometryConstraint(const gtsam::Pose3& T_prev_curr, const double& timestamp, const oxts& navData, const float& averageFlow)
 {
-    bool isRefFrame = averageFlow > 15.f;
+    bool isRefFrame = averageFlow > 17.f && !loopResultPrev_.detection();
 
-    framePose_ = framePose_ * deltaTOdom_;
-    pose2Ref_ = pose2Ref_ * deltaTOdom_;
+    framePose_ = framePose_ * T_prev_curr;
+    pose2Ref_ = pose2Ref_ * T_prev_curr;
 
     unsigned int frameIdCurr = static_cast<unsigned int>(frames_.size());
     unsigned int refFrameId = frames_.back().getRefFrameId();
@@ -93,7 +91,14 @@ void System::addOdometryConstraint(const double& timestamp, const oxts& navData,
     {
         if(optimize_)
         {
-            optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+            if(useGps_)
+            {
+                optimizer_.addPose(framePose_, frameIdCurr, timestamp, navData);
+            }
+            else
+            {
+                optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+            }
             optimizer_.addRelativePoseConstraint(pose2Ref_, refFrameId, frameIdCurr, false);
         }
         pose2Ref_ = gtsam::Pose3();
@@ -108,7 +113,8 @@ void System::addLoopClosureConstraint()
     if(closeLoops_ && loopResultPrev_.detection())
     {
         float averageFlow;
-        bool loopClosureOk = vosLoop_.process(deltaTMatch_,
+        gtsam::Pose3 T_prev_match;
+        bool loopClosureOk = vosLoop_.process(T_prev_match,
                                               averageFlow,
                                               imageLeftMatch_,
                                               imageRightMatch_,
@@ -117,7 +123,14 @@ void System::addLoopClosureConstraint()
         if(loopClosureOk)
         {
             unsigned int frameIdPrev = static_cast<unsigned int>(frames_.size() - 1);
-            optimizer_.addRelativePoseConstraint(deltaTMatch_, frameIdPrev, loopResultPrev_.match, true);
+            unsigned int refFrameIdPrev = frames_[frameIdPrev].getRefFrameId();
+            unsigned int refFrameIdMatch = frames_[loopResultPrev_.match].getRefFrameId();
+
+            gtsam::Pose3 T_refPrev_prev = frames_[frameIdPrev].getPose2Ref();
+            gtsam::Pose3 T_match_refMatch = frames_[loopResultPrev_.match].getPose2Ref().inverse();
+            gtsam::Pose3 T_refPrev_refMatch = T_refPrev_prev * T_prev_match * T_match_refMatch;
+
+            optimizer_.addRelativePoseConstraint(T_refPrev_refMatch, refFrameIdPrev, refFrameIdMatch, true);
         }
     }
 }
@@ -136,8 +149,9 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         pointsLeftPrev_.clear(); pointsRightPrev_.clear(); pointsLeftCurr_.clear(); pointsRightCurr_.clear();
 
         float averageFlow;
+        gtsam::Pose3 T_prev_curr;
         auto tic = std::chrono::high_resolution_clock::now();
-        bool odometryOk = vosOdom_.process(deltaTOdom_, averageFlow,
+        bool odometryOk = vosOdom_.process(T_prev_curr, averageFlow,
                                            imageLeftCurr, imageRightCurr,
                                            imageLeftPrev_, imageRightPrev_,
                                            pointsLeftPrev_,
@@ -151,9 +165,12 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
         if (odometryOk)
         {
-            addOdometryConstraint(timestamp, navData, averageFlow);
+            addOdometryConstraint(T_prev_curr, timestamp, navData, averageFlow);
         }
-        // ELSE STATE=TRACK_LOST
+        else
+        {
+            state_ = State::TrackLost;
+        }
     }
     else
     {
@@ -163,7 +180,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
         frames_.emplace_back(frameIdCurr, frameIdCurr, timestamp, framePose_, pose2Ref_, navData, true);
         if(optimize_)
         {
-            optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+            if(useGps_)
+            {
+                optimizer_.addPose(framePose_, frameIdCurr, timestamp, navData);
+            }
+            else
+            {
+                optimizer_.addPose(framePose_, frameIdCurr, timestamp);
+            }
         }
         state_ = State::Initialized;
     }
@@ -246,6 +270,7 @@ void System::saveSettings(const std::string& settingsFile)
         f << "closeLoops: " << (closeLoops_ ? "true" : "false") << std::endl;
         f << "useMapViewer: " << (useMapViewer_ ? "true" : "false") << std::endl;
         f << "useFrameViewer: " << (useFrameViewer_ ? "true" : "false") << std::endl;
+        f << "useGps: " << (useGps_ ? "true" : "false") << std::endl;
         f.close();
     }
     else
@@ -325,6 +350,12 @@ void System::saveOptimizationTimes(const std::string& outFile)
 
 void System::save()
 {
+    std::vector<gtsam::Pose3> poses;
+    for(auto& frame : frames_)
+    {
+        poses.push_back(frame.getPose());
+    }
+
     typedef boost::filesystem::path PATH;
     boost::posix_time::ptime timeLocal =
             boost::posix_time::second_clock::local_time();
@@ -349,10 +380,13 @@ void System::save()
     {
         //directories successfully created
         PATH trajectoryEstimatePath = outputDirectoryPath / "stamped_traj_estimate.txt";
-        saveTrajectoryRpg(trajectoryEstimatePath.string(), poses_, timestamps_);
+        saveTrajectoryRpg(trajectoryEstimatePath.string(), poses, timestamps_);
 
-        PATH groundTruthPath = outputDirectoryPath / "stamped_groundtruth.txt";
-        saveTrajectoryRpg(groundTruthPath.string(), gtPoses_, timestamps_);
+        if(!gtPoses_.empty())
+        {
+            PATH groundTruthPath = outputDirectoryPath / "stamped_groundtruth.txt";
+            saveTrajectoryRpg(groundTruthPath.string(), gtPoses_, timestamps_);
+        }
 
         PATH gpsTrackPath = outputDirectoryPath / "traj_lat_lon.txt";
         optimizer_.saveTrajectoryLatLon(gpsTrackPath.string());

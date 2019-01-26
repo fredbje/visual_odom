@@ -24,6 +24,7 @@ public:
 
     enum class State
     {
+        TrackLost,
         WaitingForFirstImage,
         Initialized
     };
@@ -32,7 +33,7 @@ private:
 
     void updatePoses();
 
-    void addOdometryConstraint(const double& timestamp, const oxts& navData, const float& averageFlow);
+    void addOdometryConstraint(const gtsam::Pose3& T_prev_curr, const double& timestamp, const oxts& navData, const float& averageFlow);
 
     void addLoopClosureConstraint();
 
@@ -54,6 +55,7 @@ private:
     bool closeLoops_ = true;
     bool useMapViewer_ = true;
     bool useFrameViewer_ = true;
+    bool useGps_ = true;
 
     StereoCamera stereoCamera_;
 
@@ -65,18 +67,12 @@ private:
 
     gtsam::Pose3 framePose_;
     gtsam::Pose3 pose2Ref_;
-    gtsam::Pose3 deltaTOdom_;
-    gtsam::Pose3 deltaTMatch_;
-    std::vector<gtsam::Pose3> poses_;
     std::vector<gtsam::Pose3> gtPoses_;
     std::vector<Frame> frames_;
 
     std::vector< cv::Point2f > pointsLeftPrev_, pointsRightPrev_, pointsLeftCurr_, pointsRightCurr_;
 
     std::vector<double> timestamps_;
-
-    //unsigned int frameIdCurr_, frameIdPrev_;
-
 
     VisualOdometryStereo vosOdom_;
     VisualOdometryStereo vosLoop_;

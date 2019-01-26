@@ -56,28 +56,75 @@ public:
 
     void saveGraphAndValues(const std::string& outputFile);
 
+    void loadGraphAndValues(const std::string& inputFile);
+
     void saveSettings(const std::string& settingsFile);
 
 private:
+    // --------
+    // Settings
+    // --------
+    bool useSwitchableLoopConstraints_ = true;
+    bool useSwitchableGpsConstraints_ = true;
+
+#define USE_GN_PARAMS
+#ifdef USE_GN_PARAMS
+    double wildfireThreshold_ = 0.001; // Continue updating the linear delta only when changes are above this threshold (default: 0.001)
+    gtsam::ISAM2Params::OptimizationParams optimizationParams_ = gtsam::ISAM2GaussNewtonParams(wildfireThreshold_);
+#else
+    double initialDelta_ = 1.0;
+    double wildfireThreshold_ = 1e-5;
+    gtsam::DoglegOptimizerImpl::TrustRegionAdaptationMode adaptationMode_ = gtsam::DoglegOptimizerImpl::SEARCH_EACH_ITERATION; //SEARCH_REDUCE_ONLY
+    bool verbose_ = false;
+    gtsam::ISAM2Params::OptimizationParams optimizationParams_ = gtsam::ISAM2DoglegParams(initialDelta_, wildfireThreshold_, adaptationMode_, verbose_);
+#endif
+
+    gtsam::ISAM2Params::RelinearizationThreshold relinearizationThreshold_ = 0.1;
+    int relinearizeSkip_ = 10;
+    bool enableRelinearization_ = true;
+    bool evaluateNonlinearError_ = false;
+    gtsam::ISAM2Params::Factorization factorization_ = gtsam::ISAM2Params::CHOLESKY;
+    bool cacheLinearizedFactors_ = true;
+    gtsam::KeyFormatter keyFormatter_ = gtsam::DefaultKeyFormatter;
+
+    gtsam::ISAM2Params iSAM2Params_ = gtsam::ISAM2Params(optimizationParams_,
+                                                        relinearizationThreshold_,
+                                                        relinearizeSkip_,
+                                                        enableRelinearization_,
+                                                        evaluateNonlinearError_,
+                                                        factorization_,
+                                                        cacheLinearizedFactors_,
+                                                        keyFormatter_);
+
+    gtsam::noiseModel::Isotropic::shared_ptr measurementNoise2D_;
+    gtsam::noiseModel::Isotropic::shared_ptr measurementNoise3D_;
+    gtsam::noiseModel::Diagonal::shared_ptr odometryNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.05)).finished()); // 10cm std on x,y,z 0.05 rad on roll,pitch,yaw;
+    gtsam::noiseModel::Diagonal::shared_ptr gpsNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 5.0, 5.0, 5.0).finished());
+    gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.3), gtsam::Vector3::Constant(1.0)).finished());
+    gtsam::noiseModel::Diagonal::shared_ptr switchPriorNoise_ = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(1.0));
+
+    gtsam::ISAM2 iSAM2_ = gtsam::ISAM2(iSAM2Params_);
+
     StereoCamera stereoCamera_;
 
     std::vector<unsigned int> poseIds_;
     std::vector<double> timestamps_;
     //size_t mPoseId, mLandmarkId, mSwitchId;
 
-    gtsam::noiseModel::Isotropic::shared_ptr mMeasurementNoise2D, mMeasurementNoise3D;
-    gtsam::noiseModel::Diagonal::shared_ptr mOdometryNoise, gpsNoise_, mLoopClosureNoise;
+
     gtsam::StereoCamera mStereoCamera;
 
     gtsam::NonlinearFactorGraph mNewFactors;
     gtsam::Values mNewValues;
     gtsam::Values mCurrentEstimate;
 
-    gtsam::ISAM2Params mParameters;
-    gtsam::ISAM2 mIsam;
-
     bool localOriginSet_;
     bool firstPoseInitialized_;
+    bool trajectoryInitializedInGlobalFrame_;
+
+    gtsam::FastVector<size_t> factorsToRemove_;
+
+    std::vector<std::pair<unsigned int, gtsam::Point3>> gpsMeasurementBuffer_;
 
     //GeographicLib::Geocentric earth(GeographicLib::Constants::WGS84_a(), GeographicLib::Constants::WGS84_f());
     GeographicLib::LocalCartesian enuProjection_;

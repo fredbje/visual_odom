@@ -341,9 +341,9 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
 
     if(estimateRotation5Pt_)
     {
-        // ------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------
         // Rotation (R) estimation using Nister's Five Points Algorithm (yields better results, but little slower)
-        // ------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------
         try
         {
             cv::Mat E, mask;
@@ -380,8 +380,7 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
                     rotation_(0, 0), rotation_(0, 1), rotation_(0, 2), translation_(0),
                     rotation_(1, 0), rotation_(1, 1), rotation_(1, 2), translation_(1),
                     rotation_(2, 0), rotation_(2, 1), rotation_(2, 2), translation_(2),
-                    0.0, 0.0, 0.0, 1.0
-                                  ).finished());
+                    0.0, 0.0, 0.0, 1.0).finished());
         }
         else
         {

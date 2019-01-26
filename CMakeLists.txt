@@ -25,7 +25,7 @@ message(STATUS "Comper flags: ${CMAKE_CXX_FLAGS}")
 #set(CMAKE_BUILD_TYPE Debug)
 
 find_package(Eigen3 REQUIRED)
-find_package(GTSAM REQUIRED)
+#find_package(GTSAM REQUIRED)
 #find_package(GTSAM_UNSTABLE REQUIRED)
 find_package(Boost REQUIRED filesystem)
 find_package(OpenCV REQUIRED)
@@ -37,13 +37,17 @@ include_directories(
         src/evaluate
         src/thirdparty
         ${EIGEN3_INCLUDE_DIR}
-        ${GTSAM_INCLUDE_DIR}
+        #${GTSAM_INCLUDE_DIR}
+        /home/fbjerkas/include
+        /usr/include/tbb
         #${GTSAM_UNSTABLE_INCLUDE_DIR}
+        /home/fbjerkas/include
         ${Boost_INCLUDE_DIRS} # For Boost::Filesystem
         ${OpenCV_INCLUDE_DIRS}
         ${Pangolin_INCLUDE_DIR}
         /usr/include/GeographicLib
 )
+
 
 #####################################
 # Main class files
@@ -70,9 +74,13 @@ add_executable(run
 target_link_libraries(run
         ${EIGEN3_LIBRARIES}
         ${Boost_LIBRARIES}
-        ${GTSAM_LIBS}
-        gtsam
+        #${GTSAM_LIBS}
+        #gtsam
         #${GTSAM_UNSTABLE_LIBS}
+        /usr/lib/x86_64-linux-gnu/libtbb.so
+        /home/fbjerkas/lib/libgtsam.so
+        /home/fbjerkas/lib/libgtsam_unstable.so
+        /home/fbjerkas/lib/libmetis.so
         ${OpenCV_LIBRARIES}
         ${Pangolin_LIBRARY}
         /usr/lib/x86_64-linux-gnu/libGeographic.so
