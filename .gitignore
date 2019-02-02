@@ -11,3 +11,4 @@ output/
 CMakeLists.txt.user
 build-apps-Desktop-Debug/
 build-visual_odom-Desktop-Default/
+executionTimes_libviso2.txt

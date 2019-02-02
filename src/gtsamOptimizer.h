@@ -41,9 +41,11 @@ private:
     };
 public:
 
-    GtsamOptimizer(const gtsam::Pose3& imu_T_cam);
+    GtsamOptimizer();
 
     ~GtsamOptimizer();
+
+    void run();
 
     void addGpsPrior(const unsigned int& id, const oxts& navdata);
 

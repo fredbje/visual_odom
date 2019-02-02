@@ -24,7 +24,7 @@
 #include "gtsamOptimizer.h"
 #include "utils.h"
 
-GtsamOptimizer::GtsamOptimizer(const gtsam::Pose3& imu_T_cam)
+GtsamOptimizer::GtsamOptimizer()
 {
 }
 
@@ -247,6 +247,7 @@ void GtsamOptimizer::optimize()
     graph.currentEstimate_ = graph.iSAM2_.calculateEstimate();
     graph.newFactors_.resize(0);
     graph.newValues_.clear();
+    LOG(DEBUG) << "Number of graphs: " << graphs_.size();
 }
 
 std::vector<gtsam::Pose3> GtsamOptimizer::getCurrentTrajectoryEstimate()

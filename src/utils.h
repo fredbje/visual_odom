@@ -33,10 +33,10 @@ void displayMap(int frame_id, cv::Mat& trajectory, cv::Matx<T, 3, 1>& translatio
 }
 */
 
-inline void loadImageLeft(cv::Mat& image, int frame_id, std::string filepath){
+inline void loadImageLeft(cv::Mat& image, unsigned int frame_id, std::string filepath){
     LOG(DEBUG) << "Loading left image";
     char file[200];
-    sprintf(file, "image_0/%06d.png", frame_id);
+    sprintf(file, "image_0/%06d.png", static_cast<int>(frame_id));
 
     std::string filename = filepath + std::string(file);
 
@@ -47,10 +47,10 @@ inline void loadImageLeft(cv::Mat& image, int frame_id, std::string filepath){
     }
 }
 
-inline void loadImageRight(cv::Mat& image, int frame_id, std::string filepath){
+inline void loadImageRight(cv::Mat& image, unsigned int frame_id, std::string filepath){
     LOG(DEBUG) << "Loading right image";
     char file[200];
-    sprintf(file, "image_1/%06d.png", frame_id);
+    sprintf(file, "image_1/%06d.png", static_cast<int>(frame_id));
 
     std::string filename = filepath + std::string(file);
 

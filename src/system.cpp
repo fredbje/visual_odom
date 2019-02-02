@@ -15,7 +15,6 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         imageRightMatch_(stereoCamera_.height(), stereoCamera_.width(), CV_8UC1),
         vosOdom_(stereoCamera_), vosLoop_(stereoCamera_),
         mapDrawer_(frames_, gtPoses_, mutexPoses_),
-        optimizer_(imuTcam),
         numLoops_(0),
         state_(State::Uninitialized)
 {
@@ -134,6 +133,7 @@ void System::addLoopClosureConstraint()
 {
     if(closeLoops_ && loopResultPrev_.detection())
     {
+        auto ticLoopClosure = std::chrono::high_resolution_clock::now();
         float averageFlow;
         gtsam::Pose3 T_prev_match;
         bool loopClosureOk = vosLoop_.process(T_prev_match,
@@ -154,16 +154,32 @@ void System::addLoopClosureConstraint()
 
             optimizer_.addRelativePoseConstraint(T_refPrev_refMatch, refFrameIdPrev, refFrameIdMatch, true);
         }
+        auto tocLoopClosure = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffLoopClosure = tocLoopClosure-ticLoopClosure;
+        loopClosureTimes_.push_back(std::make_pair(static_cast<unsigned int>(frames_.size() - 1), diffLoopClosure.count()));
     }
 }
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
+    auto ticOverall = std::chrono::high_resolution_clock::now();
+
     addLoopClosureConstraint();
 
     if(closeLoops_)
     {
-        tLoopDetection_ = std::thread(&LoopDetector::process, loopDetector_, imageLeftCurr, std::ref(loopResultCurr_));
+        auto ticOrbExtraction = std::chrono::high_resolution_clock::now();
+        loopDetector_->extractOrb(imageLeftCurr);
+        auto tocOrbExtraction = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffOrbExtraction = tocOrbExtraction-ticOrbExtraction;
+        orbExtractionTimes_.push_back(diffOrbExtraction.count());
+
+        auto ticLoopDetection = std::chrono::high_resolution_clock::now();
+        loopDetector_->detectLoop(loopResultCurr_);
+        auto tocLoopDetection = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffLoopDetection = tocLoopDetection - ticLoopDetection;
+        loopDetectionTimes_.push_back(diffLoopDetection.count());
+        //tLoopDetection_ = std::thread(&LoopDetector::process, loopDetector_, imageLeftCurr, std::ref(loopResultCurr_));
     }
 
     if(state_ == State::Initialized)
@@ -172,7 +188,7 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
         float averageFlow;
         gtsam::Pose3 T_prev_curr;
-        auto tic = std::chrono::high_resolution_clock::now();
+        auto ticVo = std::chrono::high_resolution_clock::now();
         bool odometryOk = vosOdom_.process(T_prev_curr, averageFlow,
                                            imageLeftCurr, imageRightCurr,
                                            imageLeftPrev_, imageRightPrev_,
@@ -181,9 +197,9 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                                            pointsLeftCurr_,
                                            pointsRightCurr_);
 
-        auto toc = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> diff = toc-tic;
-        voTimes_.push_back(diff.count());
+        auto tocVo = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffVo = tocVo-ticVo;
+        voTimes_.push_back(diffVo.count());
 
         if (odometryOk)
         {
@@ -201,11 +217,17 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     if(closeLoops_)
     {
-        tLoopDetection_.join();
+        //tLoopDetection_.join();
         if(loopResultCurr_.detection())
         {
-            imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
-            imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            auto ticFrameRetrieval = std::chrono::high_resolution_clock::now();
+            loadImageLeft(imageLeftMatch_, loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            loadImageRight(imageRightMatch_, loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            auto tocFrameRetrieval = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> diffFrameRetrieval = tocFrameRetrieval-ticFrameRetrieval;
+            frameRetrievalTimes_.push_back(std::make_pair(static_cast<unsigned int>(frames_.size() - 1), diffFrameRetrieval.count()));
+            //imageLeftLoaderThread_ = std::thread(loadImageLeft, std::ref(imageLeftMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
+            //imageRightLoaderThread_ = std::thread(loadImageRight, std::ref(imageRightMatch_), loopResultCurr_.match, "/home/fbjerkas/datasets/kitti-gray/sequences/00/");
             numLoops_++;
         }
         LOG(DEBUG) << "Loops detected so far: " << numLoops_;
@@ -215,7 +237,11 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     if(optimize_)
     {
+        auto ticOptimization = std::chrono::high_resolution_clock::now();
         optimizer_.optimize();
+        auto tocOptimization = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffOptimization = tocOptimization - ticOptimization;
+        optimizationTimes_.push_back(diffOptimization.count());
         updatePoses();
     }
 
@@ -238,10 +264,14 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     if(closeLoops_ && loopResultCurr_.detection())
     {
-        imageLeftLoaderThread_.join();
-        imageRightLoaderThread_.join();
+        //imageLeftLoaderThread_.join();
+        //imageRightLoaderThread_.join();
     }
     loopResultPrev_ = loopResultCurr_;
+    auto tocOverall = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> diffOverall = tocOverall-ticOverall;
+    overallTimes_.push_back(diffOverall.count());
+
 }
 
 
@@ -321,15 +351,67 @@ void System::saveOverallTimes(const std::string& outFile)
 }
 
 
-void System::saveLoopTimes(const std::string& outFile)
+void System::saveLoopClosureTimes(const std::string& outFile)
 {
     std::fstream f;
     f.open(outFile, std::ios_base::out);
     if(f.is_open())
     {
-        for(unsigned int i = 0; i < loopTimes_.size(); i++)
+        for(unsigned int i = 0; i < loopClosureTimes_.size(); i++)
         {
-            f << i << " " << loopTimes_[i] << std::endl;
+            f << loopClosureTimes_[i].first << " " << loopClosureTimes_[i].second << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+}
+
+void System::saveLoopDetectionTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < loopDetectionTimes_.size(); i++)
+        {
+            f << i << " " << loopDetectionTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+
+}
+
+void System::saveOrbExtractionTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < orbExtractionTimes_.size(); i++)
+        {
+            f << i << " " << orbExtractionTimes_[i] << std::endl;
+        }
+    }
+    else
+    {
+        LOG(ERROR) << "System could not open " << outFile;
+    }
+}
+
+void System::saveFrameRetrievalTimes(const std::string& outFile)
+{
+    std::fstream f;
+    f.open(outFile, std::ios_base::out);
+    if(f.is_open())
+    {
+        for(unsigned int i = 0; i < frameRetrievalTimes_.size(); i++)
+        {
+            f << frameRetrievalTimes_[i].first << " " << frameRetrievalTimes_[i].second << std::endl;
         }
     }
     else
@@ -420,8 +502,17 @@ void System::save()
         PATH voTimesPath = outputDirectoryPath / "voTimes.txt";
         saveVoTimes(voTimesPath.string());
 
-        PATH loopTimesPath = outputDirectoryPath / "loopTimes.txt";
-        saveLoopTimes(loopTimesPath.string());
+        PATH loopClosureTimesPath = outputDirectoryPath / "loopClosureTimes.txt";
+        saveLoopClosureTimes(loopClosureTimesPath.string());
+
+        PATH loopDetectionTimesPath = outputDirectoryPath / "loopDetectionTimes.txt";
+        saveLoopDetectionTimes(loopDetectionTimesPath.string());
+
+        PATH frameRetrievalTimesPath = outputDirectoryPath / "frameRetrievalTimes.txt";
+        saveFrameRetrievalTimes(frameRetrievalTimesPath.string());
+
+        PATH orbExtractionTimesPath = outputDirectoryPath / "orbExtractionTimes.txt";
+        saveOrbExtractionTimes(orbExtractionTimesPath.string());
 
         PATH overallTimesPath = outputDirectoryPath / "overallTimes.txt";
         saveOverallTimes(overallTimesPath.string());

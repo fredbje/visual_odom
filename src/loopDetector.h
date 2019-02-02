@@ -23,6 +23,9 @@ public:
     // Add image to database and check for loops. Returns -1 if no loop, id of matched frame otherwise.
     void process(const cv::Mat &image, DLoopDetector::DetectionResult &result);
 
+    void extractOrb(const cv::Mat & image);
+    void detectLoop(DLoopDetector::DetectionResult &result);
+
     void saveDatabase(const std::string &strDatabaseFile);
     void loadDatabase(const std::string &strDatabaseFile);
 

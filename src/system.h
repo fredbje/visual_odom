@@ -44,9 +44,15 @@ private:
 
     void saveOverallTimes(const std::string& outFile);
 
-    void saveLoopTimes(const std::string& outFile);
+    void saveLoopClosureTimes(const std::string& outFile);
+
+    void saveLoopDetectionTimes(const std::string& outFile);
 
     void saveOptimizationTimes(const std::string& outFile);
+
+    void saveFrameRetrievalTimes(const std::string& outFile);
+
+    void saveOrbExtractionTimes(const std::string& outFile);
 
 private:
     // -----------------------
@@ -54,9 +60,9 @@ private:
     // -----------------------
     bool optimize_ = true;
     bool closeLoops_ = true;
-    bool useMapViewer_ = true;
-    bool useFrameViewer_ = true;
-    bool useGps_ = true;
+    bool useMapViewer_ = false;
+    bool useFrameViewer_ = false;
+    bool useGps_ = false;
 
     StereoCamera stereoCamera_;
 
@@ -91,9 +97,12 @@ private:
     std::mutex mutexPoses_;
 
     std::vector<float> voTimes_;
-    std::vector<float> loopTimes_;
+    std::vector<float> loopDetectionTimes_;
+    std::vector<std::pair<unsigned int, float>> loopClosureTimes_;
     std::vector<float> optimizationTimes_;
     std::vector<float> overallTimes_;
+    std::vector<std::pair<unsigned int, float>> frameRetrievalTimes_;
+    std::vector<float> orbExtractionTimes_;
 
 
 };

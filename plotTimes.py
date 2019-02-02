@@ -4,18 +4,24 @@ import sys
 
 filename = sys.argv[1]
 
-x = []
-y = []
+frames = []
+times = []
 
 with open(filename,'r') as csvfile:
     plots = csv.reader(csvfile, delimiter=' ')
     for row in plots:
-        x.append(int(row[0]))
-        y.append(float(row[1]))
+        frames.append(int(row[0]))
+        times.append(float(row[1]))
 
-plt.plot(x,y)
+
+print "Average execution time: {}".format( sum(times)/ float( len(times) ) )  
+print "Max execution time: {}".format(max(times))
+print "Min execution time: {}".format(min(times))
+
+plt.plot(frames,times)
 plt.xlabel('Frame')
 plt.ylabel('Time [s]')
-plt.title('Visual Odometry Execution Time')
-plt.legend()
+plt.title('DBoW2 Execution Time')
+#plt.legend()
 plt.show()
+

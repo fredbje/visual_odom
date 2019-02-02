@@ -452,7 +452,7 @@ EntryId TemplatedDatabase<TDescriptor, F>::add(const BowVector &v,
       m_dfile[entry_id] = fv;
     }
   }
-  
+
   // update inverted file
   for(vit = v.begin(); vit != v.end(); ++vit)
   {
@@ -462,7 +462,7 @@ EntryId TemplatedDatabase<TDescriptor, F>::add(const BowVector &v,
     IFRow& ifrow = m_ifile[word_id];
     ifrow.push_back(IFPair(entry_id, word_weight));
   }
-  
+
   return entry_id;
 }
 
