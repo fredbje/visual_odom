@@ -155,6 +155,9 @@ void System::addLoopClosureConstraint()
             optimizer_.addRelativePoseConstraint(T_refPrev_refMatch, refFrameIdPrev, refFrameIdMatch, true);
         }
     }
+//    else if(closeLoops_ && frames_.size()-1 > 10 && ((frames_.size()-1) % 300) == 0){
+//        optimizer_.addRelativePoseConstraint(gtsam::Pose3(), frames_[static_cast<unsigned int>(frames_.size()-1)].getRefFrameId(), 0, true);
+//    }
 }
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
@@ -395,8 +398,8 @@ void System::save()
             saveTrajectoryRpg(groundTruthPath.string(), gtPoses_, timestamps_);
         }
 
-        PATH gpsTrackPath = outputDirectoryPath / "traj_lat_lon.txt";
-        optimizer_.saveTrajectoryLatLon(gpsTrackPath.string());
+        PATH gpsTrackPath = outputDirectoryPath / "trajLongLatAlt.kml";
+        optimizer_.saveTrajectoryLatLon(gpsTrackPath.string(), poses);
 
         PATH bowDatabasePath = outputDirectoryPath / "bow_database.txt";
         if(closeLoops_)

@@ -63,6 +63,8 @@ public:
 
     void saveTrajectoryLatLon(const std::string& outputFile);
 
+    void saveTrajectoryLatLon(const std::string& outputFile, const std::vector<gtsam::Pose3>& poses);
+
     void saveGraphAndValues(const std::string& outputFile);
 
     void loadGraphAndValues(const std::string& inputFile);
@@ -81,7 +83,7 @@ private:
     // Settings
     // --------
     bool useSwitchableLoopConstraints_ = true;
-    bool useSwitchableGpsConstraints_ = true;
+    bool useSwitchableGpsConstraints_ = false;
 
 #define USE_GN_PARAMS
 #ifdef USE_GN_PARAMS

@@ -56,6 +56,9 @@ void GtsamOptimizer::addPose(const gtsam::Pose3& estimate, const unsigned int& i
 
 bool GtsamOptimizer::isGpsBufferDiverse(const std::vector<std::pair<unsigned int, gtsam::Point3>>& gpsMeasurementBuffer)
 {
+    if(gpsMeasurementBuffer.size() < 3) {
+        return false;
+    }
     double minEast, maxEast, minNorth, maxNorth;
     bool firstIteration = true;
     for( const auto& measurement : gpsMeasurementBuffer )
@@ -119,7 +122,7 @@ void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
     }
 
     static unsigned int count = 0;
-    if (count++ % 10 != 0)
+    if (count++ % 500 != 0)
         return;
 
     double e, n, u;
@@ -299,10 +302,78 @@ gtsam::Pose3 GtsamOptimizer::getCurrentPoseEstimate(unsigned int frameId)
     }
 }
 
+void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile, const std::vector<gtsam::Pose3>& poses) {
+    LOG(INFO) << "Saving GPS track to file...";
+    std::ofstream f;
+    f.open(outputFile);
+
+    // Write the required KML things
+    f << "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n";
+    f << "<kml xmlns=\"http://www.opengis.net/kml/2.2\"> \n";
+    f << "<Document> \n";
+    f << "<name>Paths</name> \n";
+    f << "<description>Trajectory</description> \n";
+    f << "<Style id=\"yellowLineGreenPoly\"> \n";
+    f << "<LineStyle> \n";
+    f << "<color>7f00ffff</color> \n";
+    f << "<width>4</width> \n";
+    f << "</LineStyle> \n";
+    f << "<PolyStyle> \n";
+    f << "<color>7f00ff00</color> \n";
+    f << "</PolyStyle> \n";
+    f << "</Style> \n";
+    f << "<Placemark> \n";
+    f << "<name>Absolute Extruded</name> \n";
+    f << "<description>Transparent green wall with yellow outlines</description> \n";
+    f << "<styleUrl>#yellowLineGreenPoly</styleUrl> \n";
+    f << "<LineString> \n";
+    f << "<extrude>1</extrude> \n";
+    f << "<tessellate>1</tessellate> \n";
+    f << "<altitudeMode>absolute</altitudeMode> \n";
+    f << "<coordinates> \n";
+
+    for(const auto& pose : poses) {
+        double lat, lon, h;
+        enuProjection_.Reverse(pose.x(), pose.y(), pose.z(), lat, lon, h);
+        f << std::setprecision(14) << lon << "," << lat << "," << h << "\n";
+    }
+
+    f << "</coordinates> \n";
+    f << "</LineString> \n";
+    f << "</Placemark> \n";
+    f << "</Document> \n";
+    f << "</kml>" << std::endl;
+}
+
 void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
     LOG(INFO) << "Saving GPS track to file...";
     std::ofstream f;
     f.open(outputFile);
+
+    // Write the required KML things
+    f << "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n";
+    f << "<kml xmlns=\"http://www.opengis.net/kml/2.2\"> \n";
+    f << "<Document> \n";
+    f << "<name>Paths</name> \n";
+    f << "<description>Trajectory</description> \n";
+    f << "<Style id=\"yellowLineGreenPoly\"> \n";
+    f << "<LineStyle> \n";
+    f << "<color>7f00ffff</color> \n";
+    f << "<width>4</width> \n";
+    f << "</LineStyle> \n";
+    f << "<PolyStyle> \n";
+    f << "<color>7f00ff00</color> \n";
+    f << "</PolyStyle> \n";
+    f << "</Style> \n";
+    f << "<Placemark> \n";
+    f << "<name>Absolute Extruded</name> \n";
+    f << "<description>Transparent green wall with yellow outlines</description> \n";
+    f << "<styleUrl>#yellowLineGreenPoly</styleUrl> \n";
+    f << "<LineString> \n";
+    f << "<extrude>1</extrude> \n";
+    f << "<tessellate>1</tessellate> \n";
+    f << "<altitudeMode>absolute</altitudeMode> \n";
+    f << "<coordinates> \n";
 
     for(const auto& poseId : poseIds_) {
         if(graphs_.size() == 1)
@@ -310,7 +381,7 @@ void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
             gtsam::Pose3 tempPose = graphs_[0].currentEstimate_.at<gtsam::Pose3>(gtsam::Symbol('x', poseId));
             double lat, lon, h;
             enuProjection_.Reverse(tempPose.x(), tempPose.y(), tempPose.z(), lat, lon, h);
-            f << std::setprecision(14) << lat << " " << lon << "\n";
+            f << std::setprecision(14) << lon << "," << lat << "," << h << "\n";
         }
         else
         {
@@ -322,7 +393,7 @@ void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
                     gtsam::Pose3 tempPose = graphs_[graphId].currentEstimate_.at<gtsam::Pose3>(gtsam::Symbol('x', poseId));
                     double lat, lon, h;
                     enuProjection_.Reverse(tempPose.x(), tempPose.y(), tempPose.z(), lat, lon, h);
-                    f << std::setprecision(14) << lat << " " << lon << "\n";
+                    f << std::setprecision(14) << lon << "," << lat << "," << h << "\n";
                     found = true;
                 }
             }
@@ -333,6 +404,12 @@ void GtsamOptimizer::saveTrajectoryLatLon(const std::string& outputFile) {
             }
         }
     }
+
+    f << "</coordinates> \n";
+    f << "</LineString> \n";
+    f << "</Placemark> \n";
+    f << "</Document> \n";
+    f << "</kml>" << std::endl;
 }
 
 void GtsamOptimizer::setTrackLost()
