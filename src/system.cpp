@@ -162,6 +162,7 @@ void System::addLoopClosureConstraint()
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
+    auto ticOverall = std::chrono::high_resolution_clock::now();
     addLoopClosureConstraint();
 
     if(closeLoops_)
@@ -175,7 +176,7 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
         float averageFlow;
         gtsam::Pose3 T_prev_curr;
-        auto tic = std::chrono::high_resolution_clock::now();
+        auto ticVo = std::chrono::high_resolution_clock::now();
         bool odometryOk = vosOdom_.process(T_prev_curr, averageFlow,
                                            imageLeftCurr, imageRightCurr,
                                            imageLeftPrev_, imageRightPrev_,
@@ -184,9 +185,9 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
                                            pointsLeftCurr_,
                                            pointsRightCurr_);
 
-        auto toc = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> diff = toc-tic;
-        voTimes_.push_back(diff.count());
+        auto tocVo = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diffVo = tocVo-ticVo;
+        voTimes_.push_back(diffVo.count());
 
         if (odometryOk)
         {
@@ -218,9 +219,17 @@ void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr
 
     if(optimize_)
     {
+        auto tic = std::chrono::high_resolution_clock::now();
         optimizer_.optimize();
+        auto toc = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> diff = toc-tic;
+        optimizationTimes_.push_back(diff.count());
         updatePoses();
     }
+
+    auto tocOverall = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> diffOverall = tocOverall - ticOverall;
+    overallTimes_.push_back(diffOverall.count());
 
     // --------------------
     // Update visualization

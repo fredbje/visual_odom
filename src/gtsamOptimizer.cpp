@@ -122,12 +122,20 @@ void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
     }
 
     static unsigned int count = 0;
-    if (count++ % 500 != 0)
+    if (count++ % 10 != 0)
         return;
 
     double e, n, u;
     enuProjection_.Forward(navdata.lat, navdata.lon, navdata.alt, e, n, u);
+    if ((count-1) % 100 == 0) {
+        e += 30.0;
+        //n += 30.0;
+        //u += 30.0;
+    }
     gtsam::Point3 enu(e, n, u);
+
+
+
 
     Graph& currentGraph = graphs_[currentGraphId_];
     if(!currentGraph.trajectoryInitializedInGlobalFrame_)
@@ -143,9 +151,6 @@ void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
     }
     else
     {
-        //if (count++ % 100 == 0)
-        //    enu = enu + gtsam::Point3(30, 0, 0);
-
         if( useSwitchableGpsConstraints_ )
         {
             double switchPrior = 1.0;

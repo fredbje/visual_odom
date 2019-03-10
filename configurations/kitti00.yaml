@@ -20,6 +20,9 @@ Camera.height: 376
 # estimated operating frequency
 Camera.fps: 20
 
+# estimated number of frames
+NumFrames: 4541
+
 # Close/Far threshold. Baseline times.
 #DepthThreshold: 35
 

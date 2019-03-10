@@ -17,6 +17,8 @@ LoopDetector::LoopDetector(const std::string &strVocabularyFile, const cv::FileS
     mpVoc = new OrbVocabulary(strVocabularyFile);
 
     mpDetector = new OrbLoopDetector(*mpVoc, *mpParams);
+    int numFrames = fSettings["NumFrames"];
+    mpDetector->allocate(numFrames, 500);
 
     mpExtractor = new OrbExtractor();
 }
@@ -34,6 +36,8 @@ void LoopDetector::process(const cv::Mat &image, DLoopDetector::DetectionResult 
 {
     // get features
     mpExtractor->operator()(image, mvKeys, mvDescriptors);
+
+    LOG(INFO) << "Number of keypoints: " << mvKeys.size();
 
     mpDetector->detectLoop(mvKeys, mvDescriptors, result);
 }

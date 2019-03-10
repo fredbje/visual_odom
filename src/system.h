@@ -54,8 +54,8 @@ private:
     // -----------------------
     bool optimize_ = true;
     bool closeLoops_ = true;
-    bool useMapViewer_ = true;
-    bool useFrameViewer_ = true;
+    bool useMapViewer_ = false;
+    bool useFrameViewer_ = false;
     bool useGps_ = true;
 
     StereoCamera stereoCamera_;
