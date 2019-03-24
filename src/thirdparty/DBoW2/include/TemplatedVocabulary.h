@@ -1517,6 +1517,7 @@ void TemplatedVocabulary<TDescriptor,F>::save(cv::FileStorage &f,
 
   parents.push_back(0); // root
 
+  unsigned long vocSize = 0;
   while(!parents.empty())
   {
     NodeId pid = parents.back();
@@ -1536,6 +1537,8 @@ void TemplatedVocabulary<TDescriptor,F>::save(cv::FileStorage &f,
       f << "weight" << (double)child.weight;
       f << "descriptor" << F::toString(child.descriptor);
       f << "}";
+
+      vocSize += sizeof(unsigned int)*2 + sizeof(double) + sizeof (child.descriptor);
       
       // add to parent list
       if(!child.isLeaf())
@@ -1558,12 +1561,14 @@ void TemplatedVocabulary<TDescriptor,F>::save(cv::FileStorage &f,
     f << "wordId" << (int)id;
     f << "nodeId" << (int)(*wit)->id;
     f << "}";
+    vocSize += 2*sizeof(int);
   }
   
   f << "]"; // words
 
   f << "}";
 
+  std::cout << "Vocabulary size: " << vocSize << std::endl;
 }
 
 // --------------------------------------------------------------------------

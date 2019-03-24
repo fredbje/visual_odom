@@ -215,7 +215,6 @@ void VisualOdometryStereo::bucketingFeatures(int imageHeight, int imageWidth, Fe
             buckets[bucketIdx].get_features(currentFeatures);
         }
     }
-    LOG(DEBUG) << "current features number after bucketing: " << currentFeatures.size();
 }
 
 void VisualOdometryStereo::appendNewFeatures(const cv::Mat& image, FeatureSet& currentFeatures){
@@ -274,8 +273,6 @@ bool VisualOdometryStereo::process(gtsam::Pose3& deltaT, float& averageFlow,
 
         // append new features with old features
         appendNewFeatures(imageLeftPrev, currentFeatures_);
-
-        LOG(DEBUG) << "Current feature set size: " << currentFeatures_.points.size();
     }
 
     // -------------------------------------------------------------------

@@ -46,7 +46,6 @@ void LoopDetector::saveDatabase(const std::string &strDatabaseFile)
 {
     LOG(INFO) << "Saving database to " << strDatabaseFile << "...";
     mpDetector->getDatabase().save(strDatabaseFile);
-
 }
 
 void LoopDetector::loadDatabase(const std::string &strDatabaseFile)

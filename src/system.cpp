@@ -17,7 +17,8 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
         mapDrawer_(frames_, gtPoses_, mutexPoses_),
         optimizer_(imuTcam),
         numLoops_(0),
-        state_(State::Uninitialized)
+        state_(State::Uninitialized),
+        largestPosAccuracy_(0.0)
 {
     if(closeLoops_ && !optimize_)
     {
@@ -44,6 +45,7 @@ System::System(cv::FileStorage& fSettings, const std::string& vocabularyFile, co
 
 System::~System()
 {
+    std::cout << "Largest Pos accuracy: " << largestPosAccuracy_ << std::endl;
     if(useMapViewer_)
     {
         mapDrawer_.requestFinish();
@@ -155,13 +157,16 @@ void System::addLoopClosureConstraint()
             optimizer_.addRelativePoseConstraint(T_refPrev_refMatch, refFrameIdPrev, refFrameIdMatch, true);
         }
     }
-//    else if(closeLoops_ && frames_.size()-1 > 10 && ((frames_.size()-1) % 300) == 0){
+//    else if(closeLoops_ && frames_.size()-1 == 300) {//(closeLoops_ && frames_.size()-1 > 10 && ((frames_.size()-1) % 300) == 0){
 //        optimizer_.addRelativePoseConstraint(gtsam::Pose3(), frames_[static_cast<unsigned int>(frames_.size()-1)].getRefFrameId(), 0, true);
 //    }
 }
 
 void System::process(const cv::Mat& imageLeftCurr, const cv::Mat& imageRightCurr, const oxts& navData, const double& timestamp)
 {
+    if(largestPosAccuracy_ < navData.pos_accuracy)
+        largestPosAccuracy_ = navData.pos_accuracy;
+
     auto ticOverall = std::chrono::high_resolution_clock::now();
     addLoopClosureConstraint();
 

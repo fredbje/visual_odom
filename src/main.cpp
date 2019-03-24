@@ -15,7 +15,7 @@ int main(int /*argc*/, char** /* argv*/)
     std::string cam2ImuCalibrationFile = "/home/fbjerkas/datasets/2011_10_03/2011_10_03/calib_cam_to_imu.txt";
     std::string vocabularyFile = "/home/fbjerkas/src/visual_odom/vocabulary/ORBvoc.txt";
     std::string logSettingsFile = "/home/fbjerkas/src/visual_odom/configurations/easylogging.conf";
-    std::string strSettingPath = "/home/fbjerkas/src/visual_odom/configurations/kitti00.yaml";
+    std::string strSettingPath = "/home/fbjerkas/src/visual_odom/configurations/kitti00-02.yaml";
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
     if(!fSettings.isOpened())
@@ -65,30 +65,20 @@ int main(int /*argc*/, char** /* argv*/)
     cv::Mat imageLeft, imageRight;
     unsigned int frameIdInitial = 0;
     unsigned long frameIdFinal = imageFileNamesLeft.size() - 1;
-    float avgFps, currFps;
-    clock_t firstTic = clock();
     for (unsigned int frameId = frameIdInitial; frameId <= frameIdFinal; frameId++)
     {
-        clock_t tic = clock();
-//        if(frameId == 1000 || frameId == 2000 || frameId == 3000 || frameId == 4000)
-//        {
-//            imageLeft = cv::Mat::zeros(imageLeft.rows, imageLeft.cols, imageLeft.type());
-//            imageRight = cv::Mat::zeros(imageRight.rows, imageRight.cols, imageRight.type());
-//        }
-//        else
-//        {
+        LOG(INFO) << "Frame " << frameId;
+        if(false)//frameId == 1000 || frameId == 2000 || frameId == 3000 || frameId == 4000)
+        {
+            imageLeft = cv::Mat::zeros(imageLeft.rows, imageLeft.cols, imageLeft.type());
+            imageRight = cv::Mat::zeros(imageRight.rows, imageRight.cols, imageRight.type());
+        }
+        else
+        {
             loadImages(imageLeft, imageRight, imageFileNamesLeft[frameId], imageFileNamesRight[frameId]);
-//        }
-
+        }
 
         SLAM.process(imageLeft, imageRight, oxtsData[frameId], timestamps[frameId]);
-
-        clock_t toc = clock();
-        currFps = 1.f / (toc - tic) * CLOCKS_PER_SEC;
-        avgFps = float(frameId - frameIdInitial) / (toc - firstTic) * CLOCKS_PER_SEC;
-
-        LOG(DEBUG) << "Current FPS: " << currFps;
-        LOG(DEBUG) << "Average FPS: " << avgFps;
     }
 
     SLAM.save();

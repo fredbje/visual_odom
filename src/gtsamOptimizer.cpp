@@ -25,7 +25,9 @@
 #include "utils.h"
 
 GtsamOptimizer::GtsamOptimizer(const gtsam::Pose3& imu_T_cam)
-{
+{    
+    e2_ = std::mt19937(rd_());
+    dist_ = std::normal_distribution<>{0, 20};
 }
 
 GtsamOptimizer::~GtsamOptimizer() {
@@ -122,19 +124,23 @@ void GtsamOptimizer::addGpsPrior(const unsigned int& id, const oxts& navdata)
     }
 
     static unsigned int count = 0;
-    if (count++ % 10 != 0)
+    if (count > 0 && count % 1 != 0) {
+        count++;
         return;
+    }
+    count++;
 
     double e, n, u;
     enuProjection_.Forward(navdata.lat, navdata.lon, navdata.alt, e, n, u);
-    if ((count-1) % 100 == 0) {
-        e += 30.0;
-        //n += 30.0;
-        //u += 30.0;
-    }
+//    e += dist_(e2_);
+//    n += dist_(e2_);
+//    u += dist_(e2_);
+//    if ((count-1) % 100 == 0) {
+//        e += 30.0;
+//        //n += 30.0;
+//        //u += 30.0;
+//    }
     gtsam::Point3 enu(e, n, u);
-
-
 
 
     Graph& currentGraph = graphs_[currentGraphId_];

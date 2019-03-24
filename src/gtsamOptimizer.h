@@ -14,6 +14,7 @@
 #include <GeographicLib/Geocentric.hpp>
 #include <GeographicLib/LocalCartesian.hpp>
 
+#include <random>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -83,7 +84,7 @@ private:
     // Settings
     // --------
     bool useSwitchableLoopConstraints_ = true;
-    bool useSwitchableGpsConstraints_ = false;
+    bool useSwitchableGpsConstraints_ = true;
 
 #define USE_GN_PARAMS
 #ifdef USE_GN_PARAMS
@@ -117,7 +118,7 @@ private:
     gtsam::noiseModel::Isotropic::shared_ptr measurementNoise2D_;
     gtsam::noiseModel::Isotropic::shared_ptr measurementNoise3D_;
     gtsam::noiseModel::Diagonal::shared_ptr odometryNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.05)).finished()); // 10cm std on x,y,z 0.05 rad on roll,pitch,yaw;
-    gtsam::noiseModel::Diagonal::shared_ptr gpsNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 5.0, 5.0, 5.0).finished());
+    gtsam::noiseModel::Diagonal::shared_ptr gpsNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 30.0, 30.0, 30.0).finished());
     gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise_ = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(0.3), gtsam::Vector3::Constant(1.0)).finished());
     gtsam::noiseModel::Diagonal::shared_ptr switchPriorNoise_ = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(1.0));
 
@@ -132,6 +133,10 @@ private:
 
     bool localOriginSet_ = false;
     GeographicLib::LocalCartesian enuProjection_;
+
+    std::random_device rd_;
+    std::mt19937 e2_;
+    std::normal_distribution<> dist_;
 
 };
 #endif // GTSAM_OPTIMIZER_H

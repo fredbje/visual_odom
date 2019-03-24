@@ -86,10 +86,15 @@ inline void saveTrajectoryRpg(std::string filename, const std::vector<gtsam::Pos
         return;
     }
 
+    double pi = 3.141592653589793238463;
+    gtsam::Pose3 T = gtsam::Pose3(gtsam::Rot3::Rz(pi) * gtsam::Rot3::Ry(-pi/2) * gtsam::Rot3::Rz(pi/2), gtsam::Point3());
+
+    std::cout << "T: " << T << std::endl;
+
     fout << "# time x y z qx qy qz qw" << std::endl;
     for(unsigned int i = 0; i < timestamps.size(); i++)
     {
-        const gtsam::Pose3& pose = poses[i];
+        const gtsam::Pose3& pose = T*poses[i];
         gtsam::Quaternion q = pose.rotation().toQuaternion();
 
         fout << timestamps[i] << " " << pose.x() << " " << pose.y() << " " << pose.z() << " "

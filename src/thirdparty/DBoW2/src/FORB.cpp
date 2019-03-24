@@ -120,14 +120,16 @@ double FORB::distance(const FORB::TDescriptor &a,
   
 std::string FORB::toString(const FORB::TDescriptor &a)
 {
+    static unsigned long orbSize = 0;
   stringstream ss;
   const unsigned char *p = a.ptr<unsigned char>();
   
   for(int i = 0; i < a.cols; ++i, ++p)
   {
     ss << (int)*p << " ";
+    orbSize += sizeof(unsigned char);
   }
-  
+  std::cout << "orb size is now " << orbSize << std::endl;
   return ss.str();
 }
 

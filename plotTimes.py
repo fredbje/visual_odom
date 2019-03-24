@@ -1,21 +1,27 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import csv
 import sys
 
 filename = sys.argv[1]
 
-x = []
-y = []
+frames = []
+times = []
 
 with open(filename,'r') as csvfile:
     plots = csv.reader(csvfile, delimiter=' ')
     for row in plots:
-        x.append(int(row[0]))
-        y.append(float(row[1]))
+        frames.append(int(row[0]))
+        times.append(float(row[1]))
 
-plt.plot(x,y)
+print "Max: ", np.max(times)
+print "Min: ", np.min(times)
+print "Mean: ", np.mean(times)
+print "Std: ", np.std(times)
+
+plt.plot(frames,times)
 plt.xlabel('Frame')
 plt.ylabel('Time [s]')
-plt.title('Visual Odometry Execution Time')
+plt.title('Developed System')
 plt.legend()
 plt.show()

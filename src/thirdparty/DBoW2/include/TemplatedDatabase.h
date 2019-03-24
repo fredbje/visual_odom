@@ -1184,6 +1184,8 @@ void TemplatedDatabase<TDescriptor, F>::save(cv::FileStorage &fs,
   fs << "diLevels" << m_dilevels;
   
   fs << "invertedIndex" << "[";
+
+  long unsigned int dbSize = 0;
   
   typename InvertedFile::const_iterator iit;
   typename IFRow::const_iterator irit;
@@ -1196,6 +1198,7 @@ void TemplatedDatabase<TDescriptor, F>::save(cv::FileStorage &fs,
         << "imageId" << (int)irit->entry_id
         << "weight" << irit->word_weight
         << "}";
+      dbSize += sizeof(unsigned int) + sizeof(double);
     }
     fs << "]"; // word of IF
   }
@@ -1213,8 +1216,10 @@ void TemplatedDatabase<TDescriptor, F>::save(cv::FileStorage &fs,
     for(drit = dit->begin(); drit != dit->end(); ++drit)
     {
       NodeId nid = drit->first;
+      dbSize += sizeof(NodeId);
+
       const std::vector<unsigned int>& features = drit->second;
-      
+      dbSize += sizeof(std::vector<unsigned int>) + (sizeof(unsigned int)*features.size());
       // save info of last_nid
       fs << "{";
       fs << "nodeId" << (int)nid;
@@ -1231,6 +1236,7 @@ void TemplatedDatabase<TDescriptor, F>::save(cv::FileStorage &fs,
   fs << "]"; // directIndex
   
   fs << "}"; // database
+  std::cout << " Database size: " << dbSize << std::endl;
 }
 
 // --------------------------------------------------------------------------

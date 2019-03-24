@@ -54,8 +54,8 @@ private:
     // -----------------------
     bool optimize_ = true;
     bool closeLoops_ = true;
-    bool useMapViewer_ = false;
-    bool useFrameViewer_ = false;
+    bool useMapViewer_ = true;
+    bool useFrameViewer_ = true;
     bool useGps_ = true;
 
     StereoCamera stereoCamera_;
@@ -94,6 +94,10 @@ private:
     std::vector<float> loopTimes_;
     std::vector<float> optimizationTimes_;
     std::vector<float> overallTimes_;
+
+    float flow_;
+
+    double largestPosAccuracy_;
 
 
 };
